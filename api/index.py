@@ -15,15 +15,16 @@ sys.path.insert(0, FOLDER_PROYEK)
 
 from flask import Flask, make_response, redirect, render_template, request, url_for  # noqa: E402
 
-from core.data import buat_jadwal, daftar_nama_halte, durasi_putaran, potongan_jalur  # noqa: E402
-from core.komunitas import (JENIS_LAPORAN, buat_laporan, jam_versi_komunitas, ringkasan_halte,  # noqa: E402
-                            tampilan_laporan)
+from core.data import daftar_nama_halte, durasi_putaran, potongan_jalur  # noqa: E402
+from core.komunitas import (JENIS_LAPORAN, buat_laporan, jadwal_halte_komunitas, jam_versi_komunitas,  # noqa: E402
+                            ringkasan_halte, tampilan_laporan, teks_selisih)
 from core.penumpang import cari_bus_berikutnya, estimasi_perjalanan, jadwal_di_halte  # noqa: E402
 from core.penyimpanan import (hapus_laporan, laporan_bisa_disimpan, muat_data, muat_laporan,  # noqa: E402
                               simpan_laporan, tambah_dukungan)
 from core.waktu import format_durasi, ke_jam, ke_menit, menit_sekarang  # noqa: E402
 
-app = Flask(__name__, template_folder=os.path.join(FOLDER_PROYEK, "templates"))
+app = Flask(__name__, template_folder=os.path.join(FOLDER_PROYEK, "templates"),
+            static_folder=os.path.join(FOLDER_PROYEK, "static"))
 app.jinja_env.filters["jam"] = ke_jam
 app.jinja_env.filters["durasi"] = format_durasi
 
@@ -135,9 +136,16 @@ def rute():
 @app.route("/jadwal")
 def jadwal():
     data = muat_data()
-    return render_template("jadwal.html", data=data, halte=daftar_nama_halte(data),
-                           jadwal=buat_jadwal(data), sekarang=menit_sekarang(),
-                           putaran=durasi_putaran(data), komunitas=ringkasan_komunitas(data))
+    halte = daftar_nama_halte(data)
+    pilih = ambil_int("halte", 0, 0, len(halte) - 1)
+    versi = "komunitas" if request.args.get("versi") == "komunitas" else "estimasi"
+    semua = muat_laporan()
+    baris, median_halte, jumlah_laporan = jadwal_halte_komunitas(data, pilih, semua)
+    laporan_halte = [tampilan_laporan(data, lap) for lap in reversed(semua) if lap.get("halte") == pilih][:5]
+    return render_template("jadwal.html", data=data, halte=halte, pilih=pilih, versi=versi,
+                           baris=baris, median_halte=median_halte, jumlah_laporan=jumlah_laporan,
+                           laporan_halte=laporan_halte, ringkas=ringkasan_halte(data, semua),
+                           sekarang=menit_sekarang(), putaran=durasi_putaran(data), teks_selisih=teks_selisih)
 
 
 # ====================== Komunitas ======================

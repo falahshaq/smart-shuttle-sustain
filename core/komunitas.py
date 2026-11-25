@@ -185,3 +185,41 @@ def tampilan_laporan(data, laporan):
     lap["teks_jadwal"] = ke_jam(lap["jam_jadwal"]) if lap.get("jam_jadwal") is not None else None
     lap["teks_selisih"] = teks_selisih(lap.get("selisih")) if lap.get("selisih") is not None else None
     return lap
+
+
+def jadwal_halte_komunitas(data, indeks_halte, semua_laporan):
+    """Jadwal satu halte versi komunitas.
+
+    Untuk tiap jadwal resmi:
+    - kalau ada laporan khusus untuk jadwal itu -> pakai median selisih laporan tsb ("laporan");
+    - kalau tidak, tapi halte punya laporan lain -> pakai median selisih halte ("perkiraan");
+    - kalau halte belum punya laporan sama sekali -> tidak ada versi komunitas (None).
+    Laporan "bus tidak datang" untuk jadwal itu juga dihitung.
+    """
+    hari_ini = waktu_sekarang_wib()
+    per_jadwal = {}
+    tidak_datang = {}
+    for lap in semua_laporan:
+        if lap.get("halte") != indeks_halte or not masih_berlaku(lap, hari_ini) or lap.get("jam_jadwal") is None:
+            continue
+        bobot = 1 + lap.get("dukungan", 0)
+        if lap["jenis"] == "jadwal" and lap.get("selisih") is not None:
+            per_jadwal.setdefault(lap["jam_jadwal"], []).append((lap["selisih"], bobot))
+        elif lap["jenis"] == "tidak_datang":
+            tidak_datang[lap["jam_jadwal"]] = tidak_datang.get(lap["jam_jadwal"], 0) + bobot
+
+    semua_pasangan = [p for daftar in per_jadwal.values() for p in daftar]
+    median_halte = median_berbobot(semua_pasangan) if semua_pasangan else None
+
+    hasil = []
+    for k in jadwal_di_halte(data, indeks_halte):
+        resmi = k["waktu"]
+        baris = {"resmi": resmi, "jam_grup": resmi // 60, "komunitas": None, "selisih": None, "sumber": None,
+                 "jumlah": 0, "tidak_datang": tidak_datang.get(resmi, 0)}
+        if resmi in per_jadwal:
+            s = median_berbobot(per_jadwal[resmi])
+            baris.update(komunitas=resmi + s, selisih=s, sumber="laporan", jumlah=len(per_jadwal[resmi]))
+        elif median_halte is not None:
+            baris.update(komunitas=resmi + median_halte, selisih=median_halte, sumber="perkiraan")
+        hasil.append(baris)
+    return hasil, median_halte, len(semua_pasangan)

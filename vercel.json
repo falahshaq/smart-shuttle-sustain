@@ -1,6 +1,6 @@
 {
   "rewrites": [{ "source": "/:path*", "destination": "/api/index?__p=:path*" }],
   "functions": {
-    "api/index.py": { "includeFiles": "{core,data,templates}/**", "maxDuration": 30 }
+    "api/index.py": { "includeFiles": "{core,data,templates,static}/**", "maxDuration": 30 }
   }
 }

@@ -1,21 +1,158 @@
 {% extends "base.html" %}
 {% block judul %}Jadwal · {{ data.nama_layanan }}{% endblock %}
 {% block label %}<span class="label">Penumpang</span>{% endblock %}
-{% block judul_halaman %}Jadwal lengkap hari ini{% endblock %}
-{% block sub_halaman %}Jadwal resmi: {{ jadwal|length }} keberangkatan dari {{ halte[0] }}, setiap {{ data.interval_menit }} menit, satu putaran sekitar {{ putaran }} menit. Baris biru = perjalanan yang sedang berlangsung.{% endblock %}
+{% block judul_halaman %}Jadwal per halte{% endblock %}
+{% block sub_halaman %}Pilih halte, lalu lihat jadwal estimasi atau jadwal versi komunitas dari laporan penumpang.{% endblock %}
 {% block isi %}
-<div class="info">Jam di tabel adalah jadwal resmi. Baris "Kata warga" merangkum laporan penumpang 30 hari terakhir. Jadwal di lapangan beda? <a href="{{ url_for('komunitas') }}#lapor">Laporkan di sini</a>.</div>
-<div class="kartu tabel">
-<table>
-  <tr><th>#</th>{% for n in halte %}<th>{{ n }}</th>{% endfor %}<th>Kembali ke {{ halte[0] }}</th></tr>
-  <tr><td class="kecil">Kata warga</td>{% for k in komunitas %}<td>{% if k.jumlah %}<span class="warga {{ 'telat' if k.status != 'sesuai jadwal' }}">{{ k.status }}</span>{% else %}<a class="kecil" href="{{ url_for('komunitas', halte=k.indeks) }}#lapor">lapor</a>{% endif %}</td>{% endfor %}<td></td></tr>
-  {% for t in jadwal %}
-  {% set akhir = t.tiba[-1] %}
-  <tr class="{{ 'lewat' if akhir < sekarang else ('sorot' if t.berangkat <= sekarang else '') }}">
-    <td>{{ t.nomor }}</td>
-    {% for w in t.tiba %}<td class="angka">{{ w|jam }}</td>{% endfor %}
-  </tr>
+<style>
+.pilih-halte{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px;margin-bottom:28px}
+.tombol-halte{position:relative;display:block;border-radius:16px;overflow:hidden;text-decoration:none;color:#fff;aspect-ratio:16/11;background:linear-gradient(135deg,var(--biru-terang),var(--biru));box-shadow:var(--bayang);outline:3px solid transparent;outline-offset:2px;transition:transform .15s,outline-color .15s}
+.tombol-halte:hover{transform:translateY(-2px)}
+.tombol-halte img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.tombol-halte .kosong{position:absolute;inset:0;display:grid;place-items:center;opacity:.35}
+.tombol-halte::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(10,25,50,0) 35%,rgba(10,25,50,.82) 100%)}
+.tombol-halte .teks{position:absolute;left:10px;right:10px;bottom:8px;z-index:1;font-weight:700;font-size:13.5px;line-height:1.25;text-shadow:0 1px 3px rgba(0,0,0,.4)}
+.tombol-halte .no{position:absolute;top:8px;left:8px;z-index:1;width:24px;height:24px;border-radius:50%;background:rgba(255,255,255,.92);color:var(--biru-tua);font-size:12px;font-weight:800;display:grid;place-items:center}
+.tombol-halte.aktif{outline-color:var(--biru-terang)}
+.tombol-halte.aktif .no{background:var(--biru-terang);color:#fff}
+@media (max-width:760px){
+  .pilih-halte{display:flex;overflow-x:auto;scroll-snap-type:x mandatory;margin:0 -16px 24px;padding:4px 16px 8px;scrollbar-width:none}
+  .pilih-halte::-webkit-scrollbar{display:none}
+  .tombol-halte{flex:0 0 140px;scroll-snap-align:start}
+}
+
+.panel-kepala{display:flex;flex-wrap:wrap;gap:16px;align-items:center;justify-content:space-between;margin-bottom:18px}
+.panel-kepala h2{font-size:22px;margin:0}
+.tab{display:inline-flex;background:var(--biru-muda);border-radius:99px;padding:4px;gap:4px}
+.tab a{padding:8px 16px;border-radius:99px;text-decoration:none;font-size:14px;font-weight:600;color:var(--pudar);white-space:nowrap}
+.tab a.aktif{background:#fff;color:var(--biru-tua);box-shadow:0 1px 4px rgba(22,36,58,.12)}
+.jam-baris{display:flex;gap:12px;align-items:flex-start;padding:12px 0;border-top:1px solid var(--garis)}
+.jam-baris:first-child{border-top:0}
+.jam-baris .jamnya{width:34px;flex:none;color:var(--pudar);font-size:13px;font-weight:600;padding-top:8px}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{min-width:74px;padding:7px 12px;border-radius:12px;background:var(--biru-muda);color:var(--biru-tua);font-weight:700;font-variant-numeric:tabular-nums;text-align:center;line-height:1.25}
+.chip small{display:block;font-size:11px;font-weight:500;color:var(--pudar)}
+.chip.lewat{background:#f1f4f8;color:#a8b3c4}
+.chip.lewat small{color:#b9c2cf}
+.chip.berikut{background:var(--biru);color:#fff;box-shadow:0 4px 12px rgba(43,90,155,.3)}
+.chip.berikut small{color:rgba(255,255,255,.8)}
+.chip.dilapor{background:#fff4dc;color:#7a4f00}
+.chip.dilapor small{color:#8a6a2a}
+.chip.tidak{background:var(--merah-muda);color:var(--merah)}
+.legenda{display:flex;flex-wrap:wrap;gap:8px 16px;font-size:12.5px;color:var(--pudar);margin-top:14px}
+.legenda i{display:inline-block;width:12px;height:12px;border-radius:4px;vertical-align:-1px;margin-right:6px}
+.kosong-k{text-align:center;padding:28px 12px}
+.kosong-k p{color:var(--pudar);max-width:420px;margin:8px auto 18px}
+.ringkas-k{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:6px}
+.lap-mini{font-size:14px;padding:10px 0;border-top:1px solid var(--garis)}
+.lap-mini:first-of-type{border-top:0}
+</style>
+
+<div class="pilih-halte">
+  {% for n in halte %}
+  {% set h = data.halte[loop.index0] %}
+  <a class="tombol-halte {{ 'aktif' if loop.index0 == pilih }}" href="{{ url_for('jadwal', halte=loop.index0, versi=versi) }}#panel">
+    {% if h.foto %}<img src="{{ url_for('static', filename=h.foto) }}" alt="{{ n }}" loading="lazy">
+    {% else %}<span class="kosong"><svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="13" rx="3"/><path d="M3 11h18M8 17v3M16 17v3"/></svg></span>{% endif %}
+    <span class="no">{{ loop.index }}</span>
+    <span class="teks">{{ n }}</span>
+  </a>
   {% endfor %}
-</table>
+</div>
+
+<script>
+(function(){ // di HP: geser deretan halte supaya halte yang dipilih kelihatan
+  var wadah = document.querySelector('.pilih-halte'), aktif = wadah && wadah.querySelector('.aktif');
+  if (aktif && wadah.scrollWidth > wadah.clientWidth) wadah.scrollLeft = aktif.offsetLeft - wadah.offsetLeft - 16;
+})();
+</script>
+
+{% set r = ringkas[pilih] %}
+<div class="kartu" id="panel">
+  <div class="panel-kepala">
+    <div>
+      <h2>{{ halte[pilih] }}</h2>
+      <div class="kecil">Halte ke-{{ pilih + 1 }} dari {{ halte|length }} · {{ baris|length }} bus sehari ·
+        {% if r.jumlah %}komunitas: {{ r.status }}{% else %}belum ada laporan warga{% endif %}</div>
+    </div>
+    <div class="tab">
+      <a class="{{ 'aktif' if versi == 'estimasi' }}" href="{{ url_for('jadwal', halte=pilih) }}#panel">Jadwal estimasi</a>
+      <a class="{{ 'aktif' if versi == 'komunitas' }}" href="{{ url_for('jadwal', halte=pilih, versi='komunitas') }}#panel">Versi komunitas{% if jumlah_laporan %} ({{ jumlah_laporan }}){% endif %}</a>
+    </div>
+  </div>
+
+  {# kelompokkan per jam #}
+  {% set ns = namespace(berikut=none) %}
+  {% for b in baris %}{% if ns.berikut is none and b.resmi >= sekarang %}{% set ns.berikut = b.resmi %}{% endif %}{% endfor %}
+
+  {% if versi == 'estimasi' %}
+    <div>
+    {% for jam, grup in baris|groupby('jam_grup') %}
+      <div class="jam-baris">
+        <span class="jamnya">{{ '%02d'|format(jam) }}</span>
+        <div class="chips">
+        {% for b in grup %}
+          <span class="chip {{ 'berikut' if b.resmi == ns.berikut else ('lewat' if b.resmi < sekarang) }}">{{ b.resmi|jam }}{% if b.resmi == ns.berikut %}<small>berikutnya</small>{% endif %}</span>
+        {% endfor %}
+        </div>
+      </div>
+    {% endfor %}
+    </div>
+    <div class="legenda"><span><i style="background:var(--biru)"></i>Bus berikutnya</span><span><i style="background:#f1f4f8;border:1px solid var(--garis)"></i>Sudah lewat</span><span>Dihitung dari jadwal keberangkatan di {{ halte[0] }} + waktu tempuh.</span></div>
+
+  {% else %}
+    {% if not jumlah_laporan and not r.tidak_datang %}
+      <div class="kosong-k">
+        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="var(--biru-terang)" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        <h2>Belum ada laporan untuk halte ini</h2>
+        <p>Jadwal versi komunitas muncul setelah penumpang melapor jam bus yang sebenarnya datang di {{ halte[pilih] }}.</p>
+        <a class="tombol" href="{{ url_for('komunitas', halte=pilih) }}#lapor">Lapor jam bus di halte ini</a>
+      </div>
+    {% else %}
+      <div class="ringkas-k">
+        {% if median_halte is not none %}<span class="warga {{ 'telat' if teks_selisih(median_halte) != 'sesuai jadwal' }}">Rata-rata (median) {{ teks_selisih(median_halte) }}</span>{% endif %}
+        <span class="kecil">dari {{ jumlah_laporan }} laporan jam{% if r.tidak_datang %} dan {{ r.tidak_datang }} laporan bus tidak datang{% endif %}, 30 hari terakhir</span>
+      </div>
+      <div>
+      {% for jam, grup in baris|groupby('jam_grup') %}
+        <div class="jam-baris">
+          <span class="jamnya">{{ '%02d'|format(jam) }}</span>
+          <div class="chips">
+          {% for b in grup %}
+            {% if b.tidak_datang and b.sumber != 'laporan' %}
+              <span class="chip tidak">{{ b.resmi|jam }}<small>{{ b.tidak_datang }}× tidak datang</small></span>
+            {% elif b.komunitas is not none %}
+              <span class="chip {{ 'dilapor' if b.sumber == 'laporan' else ('lewat' if b.komunitas < sekarang) }}">{{ b.komunitas|jam }}<small>resmi {{ b.resmi|jam }}</small></span>
+            {% else %}
+              <span class="chip {{ 'lewat' if b.resmi < sekarang }}">{{ b.resmi|jam }}<small>resmi</small></span>
+            {% endif %}
+          {% endfor %}
+          </div>
+        </div>
+      {% endfor %}
+      </div>
+      <div class="legenda">
+        <span><i style="background:#fff4dc"></i>Ada laporan langsung untuk bus ini</span>
+        <span><i style="background:var(--biru-muda)"></i>Perkiraan dari median laporan di halte ini</span>
+        <span><i style="background:var(--merah-muda)"></i>Dilaporkan tidak datang</span>
+      </div>
+    {% endif %}
+
+    {% if laporan_halte %}
+    <div style="margin-top:22px">
+      <h2 style="font-size:16px">Laporan terbaru di halte ini</h2>
+      {% for lap in laporan_halte %}
+      <div class="lap-mini">
+        <span class="lencana {{ 'kuning' if lap.jenis in ('jadwal','tidak_datang') }}">{{ lap.nama_jenis }}</span>
+        {% if lap.jenis == 'jadwal' and lap.teks_jadwal %} Bus jadwal <b>{{ lap.teks_jadwal }}</b> datang <b>{{ lap.teks_jam }}</b> ({{ lap.teks_selisih }})
+        {% elif lap.jenis == 'tidak_datang' and lap.teks_jadwal %} Bus jadwal <b>{{ lap.teks_jadwal }}</b> tidak datang{% endif %}
+        {% if lap.isi %}<div class="kecil">"{{ lap.isi }}"</div>{% endif %}
+        <div class="kecil">{{ lap.nama }} · {{ lap.dikirim }} WIB · {{ lap.dukungan }} dukungan</div>
+      </div>
+      {% endfor %}
+      <p style="margin:14px 0 0"><a class="tautan" href="{{ url_for('komunitas', filter=pilih) }}#daftar">Semua laporan halte ini →</a> &nbsp; <a class="tautan" href="{{ url_for('komunitas', halte=pilih) }}#lapor">Kirim laporan</a></p>
+    </div>
+    {% endif %}
+  {% endif %}
 </div>
 {% endblock %}

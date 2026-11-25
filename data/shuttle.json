@@ -16,14 +16,14 @@
     "jumlah_bus": 2
   },
   "halte": [
-    {"nama": "Gerbang Utama ITB Jatinangor", "lat": -6.933698, "lon": 107.769012},
-    {"nama": "Labtek I B/FTSL", "lat": -6.932149, "lon": 107.769852},
-    {"nama": "GKU 2", "lat": -6.932208, "lon": 107.770288},
-    {"nama": "GKU 1", "lat": -6.931952, "lon": 107.770754},
-    {"nama": "Gedung Utama", "lat": -6.931639, "lon": 107.771325},
-    {"nama": "KOICA/GKU 3", "lat": -6.93161, "lon": 107.771377},
-    {"nama": "GSG", "lat": -6.930708, "lon": 107.771788},
-    {"nama": "GOR Futsal", "lat": -6.930457, "lon": 107.771434},
+    {"nama": "Gerbang Utama ITB Jatinangor", "lat": -6.933698, "lon": 107.769012, "foto": "halte/1.jpg"},
+    {"nama": "Labtek I B/FTSL", "lat": -6.932149, "lon": 107.769852, "foto": "halte/2.jpg"},
+    {"nama": "GKU 2", "lat": -6.932208, "lon": 107.770288, "foto": "halte/3.jpg"},
+    {"nama": "GKU 1", "lat": -6.931952, "lon": 107.770754, "foto": "halte/4.jpg"},
+    {"nama": "Gedung Utama", "lat": -6.931639, "lon": 107.771325, "foto": "halte/5.jpg"},
+    {"nama": "KOICA/GKU 3", "lat": -6.93161, "lon": 107.771377, "foto": "halte/6.jpg"},
+    {"nama": "GSG", "lat": -6.930708, "lon": 107.771788, "foto": "halte/7.jpg"},
+    {"nama": "GOR Futsal", "lat": -6.930457, "lon": 107.771434, "foto": "halte/8.jpg"},
     {"nama": "Labtek V A/Kehutanan", "lat": -6.932178, "lon": 107.771477}
   ],
   "waktu_tempuh": [1, 0, 1, 0, 1, 0, 1, 7, 2],
