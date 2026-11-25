@@ -55,8 +55,42 @@ def _konfigurasi_redis():
     return None
 
 
+def _url_redis_biasa():
+    """Alamat Redis biasa (redis:// atau rediss://), misalnya dari integrasi Redis di Vercel."""
+    for nama in ("REDIS_URL", "KV_URL"):
+        nilai = os.environ.get(nama, "")
+        if nilai.startswith(("redis://", "rediss://")):
+            return nilai
+    return None
+
+
+_klien = None
+
+
+def _klien_redis():
+    global _klien
+    if _klien is None:
+        import redis  # library tambahan, hanya dipakai kalau ada REDIS_URL
+        _klien = redis.from_url(_url_redis_biasa(), decode_responses=True, socket_timeout=10)
+    return _klien
+
+
+def _ada_redis():
+    return bool(_konfigurasi_redis() or _url_redis_biasa())
+
+
 def _perintah_redis(perintah):
     """Mengirim satu perintah Redis, contoh ["GET", "kunci"]."""
+    if not _konfigurasi_redis():
+        hasil = _klien_redis().execute_command(*perintah)
+        if isinstance(hasil, dict):  # HGETALL -> samakan dengan format REST (list datar)
+            datar = []
+            for k, v in hasil.items():
+                datar += [k, v]
+            return datar
+        if isinstance(hasil, set):
+            return list(hasil)
+        return hasil
     url, token = _konfigurasi_redis()
     permintaan = urllib.request.Request(
         url,
@@ -79,14 +113,14 @@ def muat_data():
 # ---------- Laporan komunitas ----------
 
 def jenis_penyimpanan():
-    if _konfigurasi_redis():
+    if _ada_redis():
         return "redis"
     return "file"
 
 
 def laporan_bisa_disimpan():
     """True kalau laporan bisa disimpan permanen."""
-    if _konfigurasi_redis():
+    if _ada_redis():
         return True
     # Di Vercel tanpa Redis, sistem file hanya bisa dibaca.
     return not os.environ.get("VERCEL")
@@ -106,7 +140,7 @@ def _tulis_file_laporan(isi):
 
 def muat_laporan():
     """List semua laporan (yang belum dihapus), lengkap dengan jumlah dukungan."""
-    if _konfigurasi_redis():
+    if _ada_redis():
         try:
             mentah = _perintah_redis(["LRANGE", KUNCI_LAPORAN, 0, -1]) or []
             dukungan_list = _perintah_redis(["HGETALL", KUNCI_DUKUNGAN]) or []
@@ -136,7 +170,7 @@ def muat_laporan():
 def simpan_laporan(laporan):
     if not laporan_bisa_disimpan():
         raise PermissionError("Penyimpanan laporan belum aktif. Hubungkan Upstash Redis di tab Storage Vercel.")
-    if _konfigurasi_redis():
+    if _ada_redis():
         _perintah_redis(["RPUSH", KUNCI_LAPORAN, json.dumps(laporan, ensure_ascii=False)])
         return
     isi = _baca_file_laporan()
@@ -147,7 +181,7 @@ def simpan_laporan(laporan):
 def tambah_dukungan(id_laporan):
     if not laporan_bisa_disimpan():
         raise PermissionError("Penyimpanan laporan belum aktif.")
-    if _konfigurasi_redis():
+    if _ada_redis():
         _perintah_redis(["HINCRBY", KUNCI_DUKUNGAN, id_laporan, 1])
         return
     isi = _baca_file_laporan()
@@ -156,7 +190,7 @@ def tambah_dukungan(id_laporan):
 
 
 def hapus_laporan(id_laporan):
-    if _konfigurasi_redis():
+    if _ada_redis():
         _perintah_redis(["SADD", KUNCI_DIHAPUS, id_laporan])
         return
     isi = _baca_file_laporan()
