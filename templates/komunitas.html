@@ -49,7 +49,7 @@
   <h2>Kirim laporan</h2>
   <p class="sub">Tanpa akun. Cukup isi yang kamu lihat di lapangan.</p>
   {% if not aktif %}
-  <div class="info">Fitur laporan belum aktif karena database belum tersambung. Pengelola web perlu menghubungkan Upstash Redis di Vercel (lihat README).</div>
+  <div class="info">Fitur laporan belum aktif karena database belum tersambung. Pengelola web perlu menghubungkan Upstash Redis di Vercel (lihat README).<br><span class="kecil">Variabel database terdeteksi: {{ nama_variabel|join(", ") if nama_variabel else "tidak ada" }}</span></div>
   {% endif %}
   <div class="kartu">
   <form method="post" action="{{ url_for('komunitas') }}#lapor" class="form-lapor">

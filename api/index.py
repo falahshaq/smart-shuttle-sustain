@@ -184,7 +184,9 @@ def komunitas():
     return render_template("komunitas.html", data=data, halte=halte, jenis=JENIS_LAPORAN, isian=isian,
                            salah=salah, ok=ok, daftar=daftar, ringkas=ringkasan_halte(data, semua),
                            aktif=laporan_bisa_disimpan(), didukung=id_didukung(),
-                           filter_halte=filter_halte, jumlah_total=len(semua))
+                           filter_halte=filter_halte, jumlah_total=len(semua),
+                           # Hanya NAMA variabel (bukan isinya), untuk membantu cek sambungan database.
+                           nama_variabel=sorted(k for k in os.environ if "REDIS" in k or k.startswith("KV") or "_KV_" in k))
 
 
 @app.route("/komunitas/dukung", methods=["POST"])
