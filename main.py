@@ -181,10 +181,13 @@ def menu_kirim_laporan(data):
     halte = None
     if jenis in ("jadwal", "tidak_datang"):
         halte = pilih_halte(data)
-    jam = input_jam("Jam bus datang / jam jadwal yang ditunggu (HH:MM, Enter = lewati): ", None, boleh_kosong=True)
+    jam = input_jam("Jam bus datang sebenarnya (HH:MM, Enter = lewati): ", None, boleh_kosong=True)
+    jadwal = None
+    if halte is not None:
+        jadwal = input_jam("Bus jadwal jam berapa yang kamu tunggu? (HH:MM, Enter = otomatis): ", None, boleh_kosong=True)
     isi = input("Keterangan: ")
     nama = input("Nama (Enter = Anonim): ")
-    laporan, salah = buat_laporan(data, jenis, halte, jam, isi, nama)
+    laporan, salah = buat_laporan(data, jenis, halte, jam, isi, nama, jadwal)
     if salah:
         for s in salah:
             print(f"  ! {s}")
@@ -192,7 +195,7 @@ def menu_kirim_laporan(data):
     simpan_laporan(laporan)
     print("Terima kasih, laporan tersimpan.")
     if laporan["selisih"] is not None:
-        print(f"Jadwal resmi terdekat {ke_jam(laporan['jam_jadwal'])}, selisih {laporan['selisih']:+d} menit.")
+        print(f"Dibandingkan dengan jadwal {ke_jam(laporan['jam_jadwal'])}, selisih {laporan['selisih']:+d} menit.")
 
 
 def menu_komunitas(data):

@@ -18,7 +18,7 @@ from flask import Flask, make_response, redirect, render_template, request, url_
 from core.data import buat_jadwal, daftar_nama_halte, durasi_putaran, potongan_jalur  # noqa: E402
 from core.komunitas import (JENIS_LAPORAN, buat_laporan, jam_versi_komunitas, ringkasan_halte,  # noqa: E402
                             tampilan_laporan)
-from core.penumpang import cari_bus_berikutnya, estimasi_perjalanan  # noqa: E402
+from core.penumpang import cari_bus_berikutnya, estimasi_perjalanan, jadwal_di_halte  # noqa: E402
 from core.penyimpanan import (hapus_laporan, laporan_bisa_disimpan, muat_data, muat_laporan,  # noqa: E402
                               simpan_laporan, tambah_dukungan)
 from core.waktu import format_durasi, ke_jam, ke_menit, menit_sekarang  # noqa: E402
@@ -154,10 +154,10 @@ def komunitas():
     salah = []
     ok = request.args.get("ok")
     isian = {"jenis": request.args.get("jenis", "jadwal"), "halte": request.args.get("halte", ""),
-             "jam": "", "isi": "", "nama": ""}
+             "jam": "", "jadwal": "", "isi": "", "nama": ""}
     if request.method == "POST":
         f = request.form
-        isian = {k: f.get(k, "") for k in ("jenis", "halte", "jam", "isi", "nama")}
+        isian = {k: f.get(k, "") for k in ("jenis", "halte", "jam", "jadwal", "isi", "nama")}
         if f.get("website"):  # kolom jebakan untuk bot spam, manusia tidak melihatnya
             return redirect(url_for("komunitas", ok="1"))
         indeks = int(isian["halte"]) if isian["halte"].isdigit() else None
@@ -167,8 +167,14 @@ def komunitas():
                 jam = ke_menit(isian["jam"])
             except ValueError:
                 salah.append("Format jam tidak valid.")
+        jam_jadwal = None
+        if isian["jadwal"].strip():
+            try:
+                jam_jadwal = ke_menit(isian["jadwal"])
+            except ValueError:
+                jam_jadwal = None
         if not salah:
-            laporan, salah = buat_laporan(data, isian["jenis"], indeks, jam, isian["isi"], isian["nama"])
+            laporan, salah = buat_laporan(data, isian["jenis"], indeks, jam, isian["isi"], isian["nama"], jam_jadwal)
             if not salah:
                 try:
                     simpan_laporan(laporan)
@@ -185,6 +191,7 @@ def komunitas():
                            salah=salah, ok=ok, daftar=daftar, ringkas=ringkasan_halte(data, semua),
                            aktif=laporan_bisa_disimpan(), didukung=id_didukung(),
                            filter_halte=filter_halte, jumlah_total=len(semua),
+                           jadwal_halte=[[ke_jam(k["waktu"]) for k in jadwal_di_halte(data, i)] for i in range(len(halte))],
                            # Hanya NAMA variabel (bukan isinya), untuk membantu cek sambungan database.
                            nama_variabel=sorted(k for k in os.environ if "REDIS" in k or k.startswith("KV") or "_KV_" in k))
 

@@ -30,7 +30,8 @@ templates/        halaman HTML
 
 1. Penumpang mengirim laporan di halaman **Komunitas**: bus datang di jam berbeda, bus tidak datang,
    halte salah, atau info lain. Tanpa akun.
-2. Untuk laporan jam, program mencari jadwal resmi terdekat di halte itu lalu menghitung selisihnya.
+2. Untuk laporan jam, pelapor memilih jadwal resmi yang ditunggu (otomatis diisi jadwal terakhir
+   sebelum jam bus datang), lalu program menghitung selisihnya.
 3. Selisih dari laporan 30 hari terakhir dirangkum per halte dengan **median berbobot**
    (bobot = 1 + jumlah "saya juga mengalami").
 4. Kalau median lebih dari 2 menit, beranda menampilkan "Kata warga: sekitar HH:MM" di samping jadwal resmi.

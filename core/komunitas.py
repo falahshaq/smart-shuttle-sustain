@@ -2,8 +2,9 @@
 
 Ide utamanya:
 - Penumpang mengirim laporan, misalnya "di halte GKU 1 bus datang jam 07:32".
-- Program mencari jadwal resmi yang paling dekat (misalnya 07:27), lalu
-  menghitung selisihnya (+5 menit = terlambat 5 menit).
+- Pelapor memilih jadwal resmi yang ia tunggu (misalnya 07:27). Kalau tidak
+  dipilih, program menebak jadwal terakhir sebelum jam bus datang. Lalu
+  dihitung selisihnya (+5 menit = terlambat 5 menit).
 - Selisih dari banyak laporan dirangkum dengan median per halte. Median dipakai
   (bukan rata-rata) supaya satu laporan yang ngawur tidak merusak hasil.
 - Hasilnya jadi "jadwal versi komunitas": jadwal resmi + selisih median.
@@ -38,8 +39,27 @@ def jadwal_terdekat(data, indeks_halte, menit):
     return terdekat
 
 
-def buat_laporan(data, jenis, indeks_halte, jam_menit, isi, nama):
+def jadwal_sebelum(data, indeks_halte, menit):
+    """Jadwal resmi terakhir yang <= `menit` (bus lebih sering telat daripada kecepetan).
+
+    Kalau `menit` lebih awal dari jadwal pertama, pakai jadwal pertama.
+    """
+    pilihan = None
+    for kedatangan in jadwal_di_halte(data, indeks_halte):
+        if kedatangan["waktu"] <= menit:
+            pilihan = kedatangan["waktu"]
+        else:
+            if pilihan is None:
+                pilihan = kedatangan["waktu"]
+            break
+    return pilihan
+
+
+def buat_laporan(data, jenis, indeks_halte, jam_menit, isi, nama, jam_jadwal=None):
     """Memeriksa isian lalu menyusun satu laporan (dict).
+
+    `jam_jadwal` = jadwal resmi yang ditunggu pelapor (dipilih di form). Kalau kosong,
+    program menebak: jadwal terakhir sebelum jam bus datang.
 
     Mengembalikan (laporan, daftar_kesalahan). Kalau ada kesalahan, laporan = None.
     """
@@ -52,6 +72,12 @@ def buat_laporan(data, jenis, indeks_halte, jam_menit, isi, nama):
         salah.append("Pilih halte tempat kamu menunggu.")
     if jenis == "jadwal" and jam_menit is None:
         salah.append("Isi jam bus benar-benar datang.")
+    if jenis == "tidak_datang" and jam_menit is None and jam_jadwal is None:
+        salah.append("Pilih jadwal bus yang kamu tunggu.")
+    if jam_jadwal is not None and indeks_halte is not None:
+        resmi = [k["waktu"] for k in jadwal_di_halte(data, indeks_halte)]
+        if jam_jadwal not in resmi:
+            jam_jadwal = None  # tidak cocok dengan jadwal halte ini: tebak otomatis
     isi = (isi or "").strip()[:MAKS_ISI]
     if jenis in ("halte", "lainnya") and len(isi) < 5:
         salah.append("Tulis keterangan singkat (minimal 5 huruf).")
@@ -72,11 +98,15 @@ def buat_laporan(data, jenis, indeks_halte, jam_menit, isi, nama):
         "isi": isi,
         "nama": nama,
     }
-    if indeks_halte is not None and jam_menit is not None:
-        resmi = jadwal_terdekat(data, indeks_halte, jam_menit)
-        laporan["jam_jadwal"] = resmi
-        if jenis == "jadwal" and resmi is not None:
-            laporan["selisih"] = jam_menit - resmi
+    if indeks_halte is not None and jenis in ("jadwal", "tidak_datang"):
+        if jam_jadwal is None and jam_menit is not None:
+            if jenis == "jadwal":
+                jam_jadwal = jadwal_sebelum(data, indeks_halte, jam_menit)
+            else:
+                jam_jadwal = jadwal_terdekat(data, indeks_halte, jam_menit)
+        laporan["jam_jadwal"] = jam_jadwal
+        if jenis == "jadwal" and jam_jadwal is not None:
+            laporan["selisih"] = jam_menit - jam_jadwal
     return laporan, []
 
 

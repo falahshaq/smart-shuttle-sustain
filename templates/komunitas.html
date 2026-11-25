@@ -57,10 +57,13 @@
       <select name="jenis">{% for k, v in jenis.items() %}<option value="{{ k }}" {{ 'selected' if isian.jenis==k }}>{{ v }}</option>{% endfor %}</select>
     </label>
     <label>Halte
-      <select name="halte"><option value="">(tidak terkait halte)</option>{% for n in halte %}<option value="{{ loop.index0 }}" {{ 'selected' if isian.halte==loop.index0|string }}>{{ n }}</option>{% endfor %}</select>
+      <select name="halte" id="isi-halte"><option value="">(tidak terkait halte)</option>{% for n in halte %}<option value="{{ loop.index0 }}" {{ 'selected' if isian.halte==loop.index0|string }}>{{ n }}</option>{% endfor %}</select>
     </label>
     <label>Jam bus datang (sebenarnya)
-      <input type="time" name="jam" value="{{ isian.jam }}">
+      <input type="time" name="jam" id="isi-jam" value="{{ isian.jam }}">
+    </label>
+    <label>Bus jadwal jam berapa yang kamu tunggu?
+      <select name="jadwal" id="isi-jadwal" data-awal="{{ isian.jadwal }}"><option value="">(otomatis)</option></select>
     </label>
     <label>Nama (boleh kosong)
       <input name="nama" maxlength="40" value="{{ isian.nama }}" placeholder="Anonim">
@@ -71,11 +74,42 @@
     <div class="jebakan" aria-hidden="true"><label>Website<input name="website" tabindex="-1" autocomplete="off"></label></div>
     <div class="penuh baris">
       <button {{ 'disabled' if not aktif }}>Kirim laporan</button>
-      <span class="kecil">Untuk "Bus tidak datang", isi jam jadwal bus yang kamu tunggu.</span>
+      <span class="kecil">Jadwal yang ditunggu otomatis diisi jadwal terakhir sebelum jam bus datang. Ganti kalau salah.</span>
     </div>
   </form>
   </div>
 </section>
+
+<script>
+(function(){
+  var jadwal = {{ jadwal_halte|tojson }};
+  var halte = document.getElementById('isi-halte'), jam = document.getElementById('isi-jam'), pilih = document.getElementById('isi-jadwal');
+  var diubahManual = false;
+  function menit(t){ var p = (t || '').split(':'); return p.length === 2 ? (+p[0]) * 60 + (+p[1]) : null; }
+  function tebak(daftar){
+    // jadwal terakhir sebelum (atau sama dengan) jam bus datang
+    var m = menit(jam.value); if (m === null || !daftar.length) return '';
+    var hasil = daftar[0];
+    for (var i = 0; i < daftar.length; i++) { if (menit(daftar[i]) <= m) hasil = daftar[i]; else break; }
+    return hasil;
+  }
+  function isi(){
+    var daftar = halte.value === '' ? [] : jadwal[+halte.value];
+    var lama = pilih.value || pilih.dataset.awal || '';
+    pilih.innerHTML = '';
+    var o = document.createElement('option'); o.value = ''; o.textContent = daftar.length ? '(otomatis)' : '(pilih halte dulu)'; pilih.appendChild(o);
+    daftar.forEach(function(t){ var o = document.createElement('option'); o.value = t; o.textContent = t; pilih.appendChild(o); });
+    var nilai = diubahManual && daftar.indexOf(lama) >= 0 ? lama : (pilih.dataset.awal && daftar.indexOf(pilih.dataset.awal) >= 0 ? pilih.dataset.awal : tebak(daftar));
+    pilih.dataset.awal = '';
+    pilih.value = nilai;
+  }
+  halte.addEventListener('change', function(){ diubahManual = false; isi(); });
+  jam.addEventListener('change', function(){ if (!diubahManual) isi(); });
+  jam.addEventListener('input', function(){ if (!diubahManual) isi(); });
+  pilih.addEventListener('change', function(){ diubahManual = true; });
+  isi();
+})();
+</script>
 
 <section class="bagian" id="daftar">
   <h2>Laporan terbaru</h2>
@@ -92,7 +126,7 @@
         {% if lap.nama_halte %}<b>{{ lap.nama_halte }}</b>{% endif %}
       </div>
       {% if lap.jenis == 'jadwal' and lap.teks_jam %}
-        <div>Bus datang <b>{{ lap.teks_jam }}</b>{% if lap.teks_jadwal %}, jadwal resmi {{ lap.teks_jadwal }} → <span class="warga {{ 'telat' if lap.teks_selisih != 'sesuai jadwal' }}">{{ lap.teks_selisih }}</span>{% endif %}</div>
+        <div>{% if lap.teks_jadwal %}Bus jadwal <b>{{ lap.teks_jadwal }}</b>, datang <b>{{ lap.teks_jam }}</b> → <span class="warga {{ 'telat' if lap.teks_selisih != 'sesuai jadwal' }}">{{ lap.teks_selisih }}</span>{% else %}Bus datang <b>{{ lap.teks_jam }}</b>{% endif %}</div>
       {% elif lap.jenis == 'tidak_datang' and lap.teks_jadwal %}
         <div>Bus jadwal <b>{{ lap.teks_jadwal }}</b> tidak datang</div>
       {% endif %}
