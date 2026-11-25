@@ -25,16 +25,33 @@ KUNCI_DIHAPUS = "sustain:dihapus"      # set id laporan yang dihapus admin
 # ---------- Redis lewat REST API (tanpa library tambahan) ----------
 
 def _konfigurasi_redis():
-    """Mengembalikan (url, token) Redis kalau tersedia, atau None."""
-    pasangan = [
-        ("KV_REST_API_URL", "KV_REST_API_TOKEN"),
-        ("UPSTASH_REDIS_REST_URL", "UPSTASH_REDIS_REST_TOKEN"),
-    ]
-    for nama_url, nama_token in pasangan:
-        url = os.environ.get(nama_url)
-        token = os.environ.get(nama_token)
-        if url and token:
-            return url.rstrip("/"), token
+    """Mengembalikan (url, token) Redis REST kalau tersedia, atau None.
+
+    Integrasi Upstash di Vercel bisa memberi nama variabel yang berbeda-beda
+    (kadang dengan awalan nama database), jadi semua kemungkinan dicek.
+    """
+    env = os.environ
+    for nama_url, nama_token in [("KV_REST_API_URL", "KV_REST_API_TOKEN"),
+                                 ("UPSTASH_REDIS_REST_URL", "UPSTASH_REDIS_REST_TOKEN")]:
+        if env.get(nama_url) and env.get(nama_token):
+            return env[nama_url].rstrip("/"), env[nama_token]
+    # Variabel dengan awalan, contoh  SHUTTLE_SUSTAIN_KV_REST_API_URL
+    for nama, nilai in env.items():
+        for akhiran_url, akhiran_token in [("KV_REST_API_URL", "KV_REST_API_TOKEN"),
+                                           ("REDIS_REST_URL", "REDIS_REST_TOKEN")]:
+            if nama.endswith(akhiran_url) and nilai:
+                token = env.get(nama[: -len(akhiran_url)] + akhiran_token)
+                if token:
+                    return nilai.rstrip("/"), token
+    # Hanya ada alamat Redis biasa (rediss://default:TOKEN@HOST:6379) dari Upstash:
+    # REST API Upstash ada di https://HOST dengan token yang sama.
+    for nama, nilai in env.items():
+        if (nama == "REDIS_URL" or nama.endswith("_REDIS_URL") or nama == "KV_URL" or nama.endswith("_KV_URL")) \
+                and nilai.startswith("rediss://") and "upstash.io" in nilai:
+            from urllib.parse import urlparse
+            u = urlparse(nilai)
+            if u.password and u.hostname:
+                return f"https://{u.hostname}", u.password
     return None
 
 
