@@ -75,45 +75,13 @@
 <section class="bagian" id="peta">
   <h2>Peta rute</h2>
   <p class="sub">Rute melingkar {{ halte[0] }} → GSG → kembali ke {{ halte[0] }}, satu putaran sekitar {{ putaran }} menit. Klik titik halte untuk melihat bus berikutnya. Posisi halte perkiraan.</p>
-  <div class="kartu" style="padding:0;overflow:hidden">
-    <div id="peta-rute" style="height:440px;background:var(--biru-muda)"></div>
-  </div>
-</section>
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
-<style>
-.penanda{width:26px;height:26px;border-radius:50%;background:#fff;border:3px solid var(--biru);color:var(--biru-tua);font:700 12px/20px "Plus Jakarta Sans",sans-serif;text-align:center;box-shadow:0 2px 6px rgba(0,0,0,.25)}
-.penanda.awal{background:var(--biru);color:#fff}
-.leaflet-popup-content{font-family:"Plus Jakarta Sans",sans-serif;font-size:13.5px;line-height:1.5}
-</style>
-<script>
-(function(){
-  if (!window.L) return;
-  var jalur = {{ data.jalur_peta|tojson }};
-  var halte = [{% for h in papan %}{
-    nama: {{ h.nama|tojson }},
-    lat: {{ data.halte[h.indeks].lat }}, lon: {{ data.halte[h.indeks].lon }},
-    bus: {{ (h.bus[0].waktu|jam if h.bus else '')|tojson }},
-    warga: {{ (h.komunitas.status if h.komunitas.jumlah else '')|tojson }},
-    lapor: {{ (url_for('komunitas', halte=h.indeks) ~ '#lapor')|tojson }}
-  }{{ ',' if not loop.last }}{% endfor %}];
-  var peta = L.map('peta-rute', {scrollWheelZoom: false});
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    maxZoom: 19, attribution: '&copy; OpenStreetMap contributors'
-  }).addTo(peta);
-  var garis = L.polyline(jalur, {color: '#2b5a9b', weight: 5, opacity: .85}).addTo(peta);
-  halte.forEach(function(h, i){
-    var ikon = L.divIcon({className: '', html: '<div class="penanda' + (i === 0 ? ' awal' : '') + '">' + (i + 1) + '</div>', iconSize: [26, 26], iconAnchor: [13, 13]});
-    var isi = document.createElement('div');
-    var b = document.createElement('b'); b.textContent = h.nama; isi.appendChild(b);
-    isi.appendChild(document.createElement('br'));
-    isi.appendChild(document.createTextNode(h.bus ? 'Bus berikutnya ' + h.bus + ' (jadwal resmi)' : 'Layanan hari ini sudah selesai'));
-    if (h.warga) { isi.appendChild(document.createElement('br')); isi.appendChild(document.createTextNode('Komunitas: ' + h.warga)); }
-    isi.appendChild(document.createElement('br'));
-    var a = document.createElement('a'); a.href = h.lapor; a.textContent = 'Lapor kalau berbeda'; isi.appendChild(a);
-    L.marker([h.lat, h.lon], {icon: ikon}).addTo(peta).bindPopup(isi);
-  });
-  peta.fitBounds(garis.getBounds(), {padding: [30, 30]});
-})();
-</script>
+  </section>
+{% set titik_peta = [] %}
+{% for h in papan %}{% set _ = titik_peta.append({
+  'nama': h.nama, 'lat': data.halte[h.indeks].lat, 'lon': data.halte[h.indeks].lon,
+  'baris': [('Bus berikutnya ' ~ (h.bus[0].waktu|jam) ~ ' (jadwal resmi)') if h.bus else 'Layanan hari ini sudah selesai']
+           + (['Komunitas: ' ~ h.komunitas.status] if h.komunitas.jumlah else []),
+  'tautan': [{'href': url_for('komunitas', halte=h.indeks) ~ '#lapor', 'teks': 'Lapor kalau berbeda'}]
+}) %}{% endfor %}
+{% with id_peta='peta-rute', sorot=none, tinggi=440 %}{% include "_peta.html" %}{% endwith %}
 {% endblock %}

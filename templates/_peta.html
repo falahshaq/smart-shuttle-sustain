@@ -1,0 +1,51 @@
+{# Peta rute (Leaflet + OpenStreetMap).
+   Butuh: id_peta, titik_peta (list dict nama/lat/lon/baris/tautan/kelas), jalur (list [lat, lon]),
+   sorot (potongan jalur yang disorot, atau none), tinggi (px). #}
+<div class="kartu" style="padding:0;overflow:hidden">
+  <div id="{{ id_peta }}" style="height:{{ tinggi }}px;background:var(--biru-muda)"></div>
+</div>
+{% if not peta_css_sudah %}
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<style>
+.penanda{width:26px;height:26px;border-radius:50%;background:#fff;border:3px solid var(--biru);color:var(--biru-tua);font:700 12px/20px "Plus Jakarta Sans",sans-serif;text-align:center;box-shadow:0 2px 6px rgba(0,0,0,.25)}
+.penanda.awal{background:var(--biru);color:#fff}
+.penanda.redup{border-color:#a9bcd6;color:#8797ae}
+.penanda.asal{background:#1d6b40;border-color:#1d6b40;color:#fff;width:30px;height:30px;line-height:24px}
+.penanda.tujuan{background:var(--merah);border-color:var(--merah);color:#fff;width:30px;height:30px;line-height:24px}
+.leaflet-popup-content{font-family:"Plus Jakarta Sans",sans-serif;font-size:13.5px;line-height:1.5}
+</style>
+{% endif %}
+<script>
+(function(){
+  if (!window.L) return;
+  var jalur = {{ jalur|tojson }};
+  var sorot = {{ sorot|tojson }};
+  var titik = {{ titik_peta|tojson }};
+  var peta = L.map({{ id_peta|tojson }}, {scrollWheelZoom: false});
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 19, attribution: '&copy; OpenStreetMap contributors'
+  }).addTo(peta);
+  var garis = L.polyline(jalur, sorot ? {color: '#8fa9cc', weight: 4, opacity: .7, dashArray: '6 8'}
+                                      : {color: '#2b5a9b', weight: 5, opacity: .85}).addTo(peta);
+  var batas = garis.getBounds();
+  if (sorot && sorot.length > 1) {
+    var s = L.polyline(sorot, {color: '#2b5a9b', weight: 7, opacity: .95}).addTo(peta);
+    batas = s.getBounds();
+  }
+  titik.forEach(function(h, i){
+    var kelas = 'penanda ' + (h.kelas || (i === 0 ? 'awal' : ''));
+    var besar = (h.kelas === 'asal' || h.kelas === 'tujuan') ? 30 : 26;
+    var ikon = L.divIcon({className: '', html: '<div class="' + kelas + '">' + (i + 1) + '</div>', iconSize: [besar, besar], iconAnchor: [besar / 2, besar / 2]});
+    var isi = document.createElement('div');
+    var b = document.createElement('b'); b.textContent = h.nama; isi.appendChild(b);
+    (h.baris || []).forEach(function(t){ isi.appendChild(document.createElement('br')); isi.appendChild(document.createTextNode(t)); });
+    (h.tautan || []).forEach(function(t, k){
+      isi.appendChild(document.createElement('br'));
+      var a = document.createElement('a'); a.href = t.href; a.textContent = t.teks; isi.appendChild(a);
+    });
+    var m = L.marker([h.lat, h.lon], {icon: ikon, zIndexOffset: h.kelas ? 1000 : 0}).addTo(peta).bindPopup(isi);
+  });
+  peta.fitBounds(batas, {padding: [40, 40], maxZoom: 18});
+})();
+</script>

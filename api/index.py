@@ -15,7 +15,7 @@ sys.path.insert(0, FOLDER_PROYEK)
 
 from flask import Flask, make_response, redirect, render_template, request, url_for  # noqa: E402
 
-from core.data import buat_jadwal, daftar_nama_halte, durasi_putaran  # noqa: E402
+from core.data import buat_jadwal, daftar_nama_halte, durasi_putaran, potongan_jalur  # noqa: E402
 from core.komunitas import (JENIS_LAPORAN, buat_laporan, jam_versi_komunitas, ringkasan_halte,  # noqa: E402
                             tampilan_laporan)
 from core.penumpang import cari_bus_berikutnya, estimasi_perjalanan  # noqa: E402
@@ -86,7 +86,8 @@ def beranda():
         papan.append({"indeks": i, "nama": nama, "bus": bus, "komunitas": komunitas[i],
                       "pertama": pertama[0]["waktu"] if pertama else None})
     return render_template("beranda.html", data=data, sekarang=sekarang, papan=papan,
-                           halte=daftar_nama_halte(data), putaran=durasi_putaran(data))
+                           halte=daftar_nama_halte(data), putaran=durasi_putaran(data),
+                           jalur=data.get("jalur_peta", []))
 
 
 @app.route("/rute")
@@ -106,8 +107,29 @@ def rute():
             hasil = estimasi_perjalanan(data, asal, tujuan, jam)
             if hasil is None:
                 pesan = f"Tidak ada bus lagi setelah pukul {ke_jam(jam)}. Shuttle beroperasi {data['jam_operasi']['mulai']} - {data['jam_operasi']['selesai']}."
+    # Titik halte untuk peta: asal hijau, tujuan merah, halte yang dilewati biru, sisanya redup.
+    dipilih = "asal" in request.args and asal != tujuan
+    dilewati = set()
+    if dipilih:
+        i = asal
+        while i != tujuan:
+            dilewati.add(i)
+            i = (i + 1) % len(halte)
+    titik_peta = []
+    for i, h in enumerate(data["halte"]):
+        kelas = ""
+        if dipilih:
+            kelas = "asal" if i == asal else "tujuan" if i == tujuan else ("" if i in dilewati else "redup")
+        titik_peta.append({
+            "nama": h["nama"], "lat": h["lat"], "lon": h["lon"], "kelas": kelas,
+            "baris": [],
+            "tautan": [{"href": url_for("rute", asal=i, tujuan=tujuan if tujuan != i else (i + 1) % len(halte)), "teks": "Berangkat dari sini"},
+                       {"href": url_for("rute", asal=asal if asal != i else (i - 1) % len(halte), tujuan=i), "teks": "Tujuan ke sini"}],
+        })
+    sorot = potongan_jalur(data, asal, tujuan) if dipilih else None
     return render_template("rute.html", data=data, halte=halte, asal=asal, tujuan=tujuan,
-                           jam=jam, hasil=hasil, pesan=pesan)
+                           jam=jam, hasil=hasil, pesan=pesan, titik_peta=titik_peta, sorot=sorot,
+                           jalur=data.get("jalur_peta", []))
 
 
 @app.route("/jadwal")

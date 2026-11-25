@@ -28,4 +28,10 @@
   <div class="rute">{% for r in hasil.rute %}<span>{{ r }}</span>{% if not loop.last %}→{% endif %}{% endfor %}</div>
 </div>
 {% endif %}
+
+<section class="bagian" style="margin-top:12px">
+  <h2>Peta rute</h2>
+  <p class="sub">{% if sorot %}Garis biru tebal = jalur yang kamu lewati dari <b style="color:#1d6b40">{{ halte[asal] }}</b> ke <b style="color:var(--merah)">{{ halte[tujuan] }}</b>. Garis putus-putus = sisa rute.{% else %}Klik titik halte untuk memilih asal atau tujuan.{% endif %} Bus berjalan satu arah (melingkar), jadi rute kadang memutar.</p>
+  {% with id_peta='peta-rute', tinggi=420 %}{% include "_peta.html" %}{% endwith %}
+</section>
 {% endblock %}
