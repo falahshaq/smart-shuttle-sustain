@@ -14,7 +14,11 @@
 .dukung{background:var(--biru-muda);color:var(--biru);padding:6px 14px;font-size:13px;border-radius:99px}
 .dukung:hover{background:var(--biru-garis);color:var(--biru-tua)}
 .dukung.sudah{background:#e9f7ef;color:#1d6b40;cursor:default}
-.form-lapor{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px}
+.form-lapor{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px 16px;align-items:end}
+.form-lapor input:not([type=hidden]),.form-lapor select{width:100%;height:46px}
+.form-lapor .petunjuk{font-size:12.5px;color:var(--pudar);line-height:1.45;padding-bottom:4px}
+@media (max-width:760px){.form-lapor{grid-template-columns:1fr 1fr}.form-lapor .petunjuk{grid-column:1/-1;padding:0}}
+@media (max-width:480px){.form-lapor{grid-template-columns:1fr}}
 .form-lapor .penuh{grid-column:1/-1}
 .form-lapor textarea{min-height:90px;font-family:inherit;font-size:15px}
 .jebakan{position:absolute;left:-9999px;width:1px;height:1px;overflow:hidden}
@@ -59,22 +63,22 @@
     <label>Halte
       <select name="halte" id="isi-halte"><option value="">(tidak terkait halte)</option>{% for n in halte %}<option value="{{ loop.index0 }}" {{ 'selected' if isian.halte==loop.index0|string }}>{{ n }}</option>{% endfor %}</select>
     </label>
-    <label>Jam bus datang (sebenarnya)
-      <input type="time" name="jam" id="isi-jam" value="{{ isian.jam }}">
-    </label>
-    <label>Bus jadwal jam berapa yang kamu tunggu?
-      <select name="jadwal" id="isi-jadwal" data-awal="{{ isian.jadwal }}"><option value="">(otomatis)</option></select>
-    </label>
     <label>Nama (boleh kosong)
       <input name="nama" maxlength="40" value="{{ isian.nama }}" placeholder="Anonim">
     </label>
+    <label>Jam bus datang
+      <input type="time" name="jam" id="isi-jam" value="{{ isian.jam }}">
+    </label>
+    <label>Jadwal yang ditunggu
+      <select name="jadwal" id="isi-jadwal" data-awal="{{ isian.jadwal }}"><option value="">(otomatis)</option></select>
+    </label>
+    <div class="petunjuk">"Jadwal yang ditunggu" otomatis diisi jadwal resmi terakhir sebelum jam bus datang. Ganti kalau salah.</div>
     <label class="penuh">Keterangan
       <textarea name="isi" maxlength="300" placeholder="Contoh: bus jam 07:25 baru datang 07:33, penuh karena jam masuk kuliah.">{{ isian.isi }}</textarea>
     </label>
     <div class="jebakan" aria-hidden="true"><label>Website<input name="website" tabindex="-1" autocomplete="off"></label></div>
     <div class="penuh baris">
       <button {{ 'disabled' if not aktif }}>Kirim laporan</button>
-      <span class="kecil">Jadwal yang ditunggu otomatis diisi jadwal terakhir sebelum jam bus datang. Ganti kalau salah.</span>
     </div>
   </form>
   </div>
