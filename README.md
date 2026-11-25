@@ -1,50 +1,40 @@
-# Smart Shuttle ITB Jatinangor
+# Smart Shuttle ITB Jatinangor (versi Sustainability)
 
-Sistem informasi jadwal dan optimasi shuttle kampus, untuk Proyek II WI1102 Berpikir Komputasional (Kelompok 01 K33).
-
-Ada dua versi yang memakai **logika yang sama** (folder `core/`):
+Info shuttle dalam kampus ITB Jatinangor: jadwal resmi, peta rute, dan **jadwal versi komunitas**
+dari laporan penumpang. Turunan dari repo `tubes2`; fitur simulasi, optimasi, adopsi, dan kelola data dihapus.
 
 - **Terminal**: `main.py`
-- **Web**: `api/index.py` (Flask), bisa di-deploy ke Vercel
+- **Web**: `api/index.py` (Flask), di-deploy ke Vercel
 
-> ⚠️ Data di `data/shuttle.json` masih **data contoh**. Ganti dengan data survei lapangan.
+Data rute, halte, jadwal, dan jalur peta di `data/shuttle.json` diambil dari
+[ModaHub PetakPeta](https://modahub.petakpeta.com/rute/kampus_jatinangor/ITBJ_SHUTTLE/shuttle-dalam-kampus-itb-jatinangor)
+(Transport for Bandung, Agu 2026 · OpenStreetMap): 9 halte melingkar, berangkat dari Gerbang Utama
+setiap 20 menit pukul 06:45–15:45, satu putaran sekitar 13 menit.
 
 ## Struktur folder
 
 ```
-core/                  logika inti, tanpa input()/print()
-  waktu.py             konversi jam <-> menit, jam WIB sekarang
-  data.py              model rute, jadwal, validasi data
-  penumpang.py         jadwal halte, bus berikutnya, estimasi waktu tiba
-  simulasi.py          simulasi sehari per menit, proses di halte (antrean)
-  optimasi.py          fungsi skor + brute force interval x jumlah bus
-  adopsi.py            simulasi pertambahan pengguna
-  laporan.py           analisis hasil + laporan teks
-  penyimpanan.py       baca/simpan data (file JSON atau Redis)
-data/
-  shuttle.json         data yang sedang dipakai (bisa diubah)
-  shuttle_default.json data contoh untuk reset
-main.py                program terminal (menu)
-api/index.py           program web (Flask)
-templates/             halaman HTML
-vercel.json            pengaturan Vercel
-requirements.txt       library Python untuk web (Flask)
+core/
+  waktu.py        konversi jam <-> menit, jam WIB sekarang
+  data.py         model rute dan jadwal
+  penumpang.py    jadwal halte, bus berikutnya, estimasi waktu tiba
+  komunitas.py    laporan penumpang + jadwal versi komunitas (median selisih)
+  penyimpanan.py  baca data, simpan laporan (Redis atau file data/laporan.json)
+data/shuttle.json data resmi
+main.py           program terminal
+api/index.py      program web (Flask)
+templates/        halaman HTML
 ```
 
-## Hubungan dengan flowchart di laporan
+## Cara kerja laporan komunitas
 
-| Flowchart | Fungsi |
-|---|---|
-| 2.2.1 Program utama | `main()` di `main.py` |
-| 2.2.2 Layanan penumpang | `menu_penumpang()` di `main.py` |
-| 2.2.3 Pencarian bus berikutnya | `cari_bus_berikutnya()` di `core/penumpang.py` |
-| 2.2.4 Estimasi waktu tiba | `estimasi_perjalanan()` di `core/penumpang.py` |
-| 2.2.5 Menu simulasi & optimasi | `menu_pengelola()` di `main.py` |
-| 2.2.6 Simulasi sehari | `simulasi_sehari()` di `core/simulasi.py` |
-| 2.2.7 Proses di halte | `proses_di_halte()` di `core/simulasi.py` |
-| 2.2.8 Optimasi jadwal | `optimasi_jadwal()` + `hitung_skor()` di `core/optimasi.py` |
-| 2.2.9 Simulasi adopsi | `simulasi_adopsi()` di `core/adopsi.py` |
-| 2.2.10 Analisis & laporan | `ringkasan()` + `buat_teks_laporan()` di `core/laporan.py` |
+1. Penumpang mengirim laporan di halaman **Komunitas**: bus datang di jam berbeda, bus tidak datang,
+   halte salah, atau info lain. Tanpa akun.
+2. Untuk laporan jam, program mencari jadwal resmi terdekat di halte itu lalu menghitung selisihnya.
+3. Selisih dari laporan 30 hari terakhir dirangkum per halte dengan **median berbobot**
+   (bobot = 1 + jumlah "saya juga mengalami").
+4. Kalau median lebih dari 2 menit, beranda menampilkan "Kata warga: sekitar HH:MM" di samping jadwal resmi.
+5. Admin bisa menghapus laporan spam dengan kata sandi `ADMIN_PASSWORD`.
 
 ## Menjalankan di laptop
 
@@ -65,25 +55,11 @@ python api/index.py
 
 Lalu buka http://127.0.0.1:5000 di browser.
 
-## Mengubah data
+## Mengubah data resmi
 
-Data bisa diubah dengan tiga cara:
-
-1. Menu **Kelola data** di terminal
-2. Halaman **Data** di web (form atau edit JSON langsung)
-3. Edit file `data/shuttle.json` langsung
-
-Isi data:
-
-- `jam_operasi`: jam mulai dan selesai keberangkatan
-- `halte`: daftar halte **sesuai urutan rute** (rute melingkar, kembali ke halte pertama)
-- `waktu_tempuh`: menit dari halte ke-i ke halte berikutnya (yang terakhir = kembali ke halte pertama)
-- `waktu_henti`: menit bus berhenti di tiap halte
-- `armada`: jumlah bus dan kapasitas
-- `interval_menit`: jarak antar keberangkatan
-- `permintaan`: rata-rata penumpang datang **per jam** di tiap halte, contoh `"7": [60, 70, 8, 5, 4, 3]` berarti jam 07:00–07:59
-- `optimasi`: rentang yang dicoba + bobot fungsi skor
-- `adopsi`: angka hasil kuesioner
+Edit `data/shuttle.json` lalu push. Isinya: `jam_operasi`, `interval_menit`, `halte` (nama + koordinat,
+urut sesuai rute), `waktu_tempuh` (menit ke halte berikutnya; yang terakhir = kembali ke halte pertama),
+dan `jalur_peta` (garis rute di peta).
 
 ## Deploy ke Vercel
 
@@ -93,19 +69,20 @@ Isi data:
 
 Setiap `git push` ke branch `main` otomatis meng-update web.
 
-### Supaya data bisa diedit dari web yang online
+### Supaya laporan komunitas bisa disimpan
 
-Di Vercel, program **tidak bisa menulis file** saat berjalan. Jadi untuk menyimpan perubahan data dibutuhkan database kecil:
+Di Vercel program tidak bisa menulis file, jadi laporan disimpan di database Redis:
 
-1. Di dashboard proyek Vercel buka tab **Storage → Create / Browse Marketplace → Upstash (Redis)**, buat database gratis, lalu **Connect** ke proyek ini. Variabel `KV_REST_API_URL` dan `KV_REST_API_TOKEN` otomatis ditambahkan.
-2. Buka **Settings → Environment Variables**, tambahkan `ADMIN_PASSWORD` dengan kata sandi pilihan kalian. Tanpa ini halaman Data terkunci supaya tidak bisa diubah sembarang orang.
-3. **Redeploy** (tab Deployments → titik tiga → Redeploy).
+1. Di dashboard project Vercel buka tab **Storage → Upstash for Redis**, buat database gratis, lalu
+   **Connect** ke project ini. Variabel `KV_REST_API_URL` dan `KV_REST_API_TOKEN` otomatis ditambahkan.
+   (Boleh juga memakai database yang sama dengan project tubes2; kuncinya berbeda, `sustain:*`.)
+2. **Settings → Environment Variables**: tambahkan `ADMIN_PASSWORD` untuk menghapus laporan spam.
+3. **Redeploy**.
 
-Tanpa langkah ini, semua fitur tetap jalan, hanya data tidak bisa diubah lewat web online (ubah lewat `data/shuttle.json` lalu push).
+Tanpa langkah ini web tetap jalan, hanya tombol kirim laporan nonaktif.
 
 ## Konsep berpikir komputasional
 
-- **Dekomposisi**: tiap fitur jadi fungsi sendiri di modul yang terpisah
-- **Abstraksi**: waktu = menit sejak 00:00; rute = list halte melingkar; penumpang = asal, tujuan, waktu datang
-- **Pola**: tiap menit simulasi berulang dengan pola yang sama (datang → antre → turun → naik)
-- **Algoritma**: pencarian linear, simulasi waktu diskrit, antrean FIFO, brute force dengan fungsi skor
+- **Dekomposisi**: tiap fitur jadi fungsi sendiri di modul terpisah, dipakai bersama oleh terminal dan web
+- **Abstraksi**: waktu = menit sejak 00:00; rute = list halte melingkar; laporan = halte, jam, selisih
+- **Algoritma**: pencarian linear (bus berikutnya, jadwal terdekat), median berbobot

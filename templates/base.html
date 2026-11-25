@@ -108,6 +108,9 @@ tr.lewat td{color:#a8b3c4}
 .rute span{background:var(--biru-muda);color:var(--biru-tua);border-radius:99px;padding:5px 14px;font-size:13.5px;font-weight:500}
 .rute span:first-child,.rute span:last-child{background:var(--biru);color:#fff}
 .kecil{font-size:13px;color:var(--pudar)}
+.warga{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;font-weight:600;padding:3px 10px;border-radius:99px;background:#e9f7ef;color:#1d6b40}
+.warga.telat{background:#fff4dc;color:#8a5a00}
+.warga.kosong{background:var(--biru-muda);color:var(--pudar);font-weight:500}
 details.kartu summary{cursor:pointer;font-weight:700}
 footer{border-top:1px solid var(--garis);background:#fff;color:var(--pudar);font-size:13px}
 footer .isi{max-width:1080px;margin:0 auto;padding:20px;display:flex;flex-wrap:wrap;gap:8px 24px;justify-content:space-between}
@@ -123,10 +126,7 @@ footer .isi{max-width:1080px;margin:0 auto;padding:20px;display:flex;flex-wrap:w
     <a href="{{ url_for('beranda') }}" class="{{ 'aktif' if menu_aktif=='beranda' }}">Beranda</a>
     <a href="{{ url_for('rute') }}" class="{{ 'aktif' if menu_aktif=='rute' }}">Rute & ETA</a>
     <a href="{{ url_for('jadwal') }}" class="{{ 'aktif' if menu_aktif=='jadwal' }}">Jadwal</a>
-    <a href="{{ url_for('simulasi') }}" class="{{ 'aktif' if menu_aktif=='simulasi' }}">Simulasi</a>
-    <a href="{{ url_for('optimasi') }}" class="{{ 'aktif' if menu_aktif=='optimasi' }}">Optimasi</a>
-    <a href="{{ url_for('adopsi') }}" class="{{ 'aktif' if menu_aktif=='adopsi' }}">Adopsi</a>
-    <a href="{{ url_for('data_page') }}" class="{{ 'aktif' if menu_aktif=='data_page' }}">Data</a>
+    <a href="{{ url_for('komunitas') }}" class="{{ 'aktif' if menu_aktif=='komunitas' }}">Komunitas</a>
     <a href="{{ url_for('tentang') }}" class="{{ 'aktif' if menu_aktif=='tentang' }}">Tentang</a>
   </nav>
 </div></header>
@@ -147,8 +147,8 @@ footer .isi{max-width:1080px;margin:0 auto;padding:20px;display:flex;flex-wrap:w
 {% block isi %}{% endblock %}
 </main>
 <footer><div class="isi">
-  <span>Smart Shuttle ITB Jatinangor · WI1102 Berpikir Komputasional · Kelompok 01 K33</span>
-  <span>Semua waktu dalam WIB</span>
+  <span>Smart Shuttle ITB Jatinangor · jadwal resmi + laporan komunitas</span>
+  <span>Data rute: {% if data.sumber %}<a href="{{ data.sumber.url }}" target="_blank" rel="noopener">{{ data.sumber.nama }}</a>{% endif %} · Semua waktu dalam WIB</span>
 </div></footer>
 </body>
 </html>

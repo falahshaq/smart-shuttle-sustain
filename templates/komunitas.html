@@ -1,0 +1,115 @@
+{% extends "base.html" %}
+{% block judul %}Komunitas · {{ data.nama_layanan }}{% endblock %}
+{% block label %}<span class="label">Dari penumpang, untuk penumpang</span>{% endblock %}
+{% block judul_halaman %}Jadwal versi komunitas{% endblock %}
+{% block sub_halaman %}Bus datang beda dari jadwal? Halte salah? Laporkan di sini. Laporan sesama penumpang dirangkum jadi perkiraan jadwal yang sebenarnya di lapangan.{% endblock %}
+{% block isi %}
+<style>
+.lap{display:flex;flex-direction:column;gap:8px}
+.lap .kepala{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.lap .meta{font-size:12.5px;color:var(--pudar)}
+.lap .isi-lap{margin:0}
+.lap .aksi{display:flex;flex-wrap:wrap;gap:10px;align-items:center;font-size:13px}
+.lap form{display:inline}
+.dukung{background:var(--biru-muda);color:var(--biru);padding:6px 14px;font-size:13px;border-radius:99px}
+.dukung:hover{background:var(--biru-garis);color:var(--biru-tua)}
+.dukung.sudah{background:#e9f7ef;color:#1d6b40;cursor:default}
+.form-lapor{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px}
+.form-lapor .penuh{grid-column:1/-1}
+.form-lapor textarea{min-height:90px;font-family:inherit;font-size:15px}
+.jebakan{position:absolute;left:-9999px;width:1px;height:1px;overflow:hidden}
+.hapus-admin summary{font-size:12px;color:var(--pudar);cursor:pointer}
+.hapus-admin input{width:140px;padding:5px 8px;font-size:13px}
+.hapus-admin button{padding:5px 12px;font-size:12.5px}
+</style>
+
+{% if ok %}<div class="berhasil">Terima kasih! Laporanmu sudah masuk dan langsung ikut dihitung di jadwal versi komunitas.</div>{% endif %}
+{% if salah %}<div class="galat">Laporan belum terkirim:<ul>{% for s in salah %}<li>{{ s }}</li>{% endfor %}</ul></div>{% endif %}
+
+<section class="bagian">
+  <h2>Kondisi tiap halte menurut warga</h2>
+  <p class="sub">Median selisih dari laporan 30 hari terakhir. Laporan yang didukung banyak orang ("saya juga") bobotnya lebih besar.</p>
+  <div class="kartu tabel">
+  <table>
+    <tr><th>Halte</th><th>Status</th><th class="angka">Laporan jam</th><th class="angka">"Tidak datang"</th><th></th></tr>
+    {% for r in ringkas %}
+    <tr>
+      <td>{{ r.nama }}</td>
+      <td>{% if r.jumlah %}<span class="warga {{ 'telat' if r.status != 'sesuai jadwal' }}">{{ r.status }}</span>{% else %}<span class="warga kosong">belum ada laporan</span>{% endif %}</td>
+      <td class="angka">{{ r.jumlah }}</td>
+      <td class="angka">{{ r.tidak_datang }}</td>
+      <td><a class="kecil" href="{{ url_for('komunitas', filter=r.indeks) }}#daftar">lihat</a> · <a class="kecil" href="{{ url_for('komunitas', halte=r.indeks) }}#lapor">lapor</a></td>
+    </tr>
+    {% endfor %}
+  </table>
+  </div>
+</section>
+
+<section class="bagian" id="lapor">
+  <h2>Kirim laporan</h2>
+  <p class="sub">Tanpa akun. Cukup isi yang kamu lihat di lapangan.</p>
+  {% if not aktif %}
+  <div class="info">Fitur laporan belum aktif karena database belum tersambung. Pengelola web perlu menghubungkan Upstash Redis di Vercel (lihat README).</div>
+  {% endif %}
+  <div class="kartu">
+  <form method="post" action="{{ url_for('komunitas') }}#lapor" class="form-lapor">
+    <label>Jenis laporan
+      <select name="jenis">{% for k, v in jenis.items() %}<option value="{{ k }}" {{ 'selected' if isian.jenis==k }}>{{ v }}</option>{% endfor %}</select>
+    </label>
+    <label>Halte
+      <select name="halte"><option value="">(tidak terkait halte)</option>{% for n in halte %}<option value="{{ loop.index0 }}" {{ 'selected' if isian.halte==loop.index0|string }}>{{ n }}</option>{% endfor %}</select>
+    </label>
+    <label>Jam bus datang (sebenarnya)
+      <input type="time" name="jam" value="{{ isian.jam }}">
+    </label>
+    <label>Nama (boleh kosong)
+      <input name="nama" maxlength="40" value="{{ isian.nama }}" placeholder="Anonim">
+    </label>
+    <label class="penuh">Keterangan
+      <textarea name="isi" maxlength="300" placeholder="Contoh: bus jam 07:25 baru datang 07:33, penuh karena jam masuk kuliah.">{{ isian.isi }}</textarea>
+    </label>
+    <div class="jebakan" aria-hidden="true"><label>Website<input name="website" tabindex="-1" autocomplete="off"></label></div>
+    <div class="penuh baris">
+      <button {{ 'disabled' if not aktif }}>Kirim laporan</button>
+      <span class="kecil">Untuk "Bus tidak datang", isi jam jadwal bus yang kamu tunggu.</span>
+    </div>
+  </form>
+  </div>
+</section>
+
+<section class="bagian" id="daftar">
+  <h2>Laporan terbaru</h2>
+  <p class="sub">{{ jumlah_total }} laporan masuk.
+    {% if filter_halte %}Menampilkan halte {{ halte[filter_halte|int] }}. <a href="{{ url_for('komunitas') }}#daftar">Tampilkan semua</a>{% endif %}</p>
+  {% if not daftar %}
+  <div class="kartu kecil">Belum ada laporan. Jadilah yang pertama!</div>
+  {% endif %}
+  <div class="grid dua">
+  {% for lap in daftar %}
+    <div class="kartu lap" id="lap-{{ lap.id }}">
+      <div class="kepala">
+        <span class="lencana {{ 'kuning' if lap.jenis in ('jadwal', 'tidak_datang') }}">{{ lap.nama_jenis }}</span>
+        {% if lap.nama_halte %}<b>{{ lap.nama_halte }}</b>{% endif %}
+      </div>
+      {% if lap.jenis == 'jadwal' and lap.teks_jam %}
+        <div>Bus datang <b>{{ lap.teks_jam }}</b>{% if lap.teks_jadwal %}, jadwal resmi {{ lap.teks_jadwal }} → <span class="warga {{ 'telat' if lap.teks_selisih != 'sesuai jadwal' }}">{{ lap.teks_selisih }}</span>{% endif %}</div>
+      {% elif lap.jenis == 'tidak_datang' and lap.teks_jadwal %}
+        <div>Bus jadwal <b>{{ lap.teks_jadwal }}</b> tidak datang</div>
+      {% endif %}
+      {% if lap.isi %}<p class="isi-lap">{{ lap.isi }}</p>{% endif %}
+      <div class="meta">{{ lap.nama }} · {{ lap.dikirim }} WIB</div>
+      <div class="aksi">
+        {% if lap.id in didukung %}
+          <span class="tombol dukung sudah">✓ Kamu mendukung · {{ lap.dukungan }}</span>
+        {% else %}
+          <form method="post" action="{{ url_for('dukung') }}"><input type="hidden" name="id" value="{{ lap.id }}"><button class="dukung" {{ 'disabled' if not aktif }}>👍 Saya juga mengalami · {{ lap.dukungan }}</button></form>
+        {% endif %}
+        <details class="hapus-admin"><summary>admin</summary>
+          <form method="post" action="{{ url_for('hapus') }}" class="baris" style="margin-top:6px"><input type="hidden" name="id" value="{{ lap.id }}"><input type="password" name="sandi" placeholder="Sandi admin"><button class="bahaya">Hapus</button></form>
+        </details>
+      </div>
+    </div>
+  {% endfor %}
+  </div>
+</section>
+{% endblock %}

@@ -54,3 +54,8 @@ def format_durasi(menit):
     if sisa == 0:
         return f"{jam} jam"
     return f"{jam} jam {sisa} menit"
+
+
+def waktu_sekarang_wib():
+    """datetime sekarang dalam WIB."""
+    return datetime.now(WIB)

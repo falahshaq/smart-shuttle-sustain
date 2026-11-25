@@ -15,9 +15,9 @@
     <div>
       <span class="label">Shuttle Kampus Jatinangor</span>
       <h1>Kapan shuttle berikutnya datang?</h1>
-      <p>Cek jadwal tiap halte dan perkiraan waktu tiba, jadi nggak perlu menunggu tanpa kepastian.</p>
+      <p>Jadwal resmi digabung dengan laporan sesama penumpang, jadi kamu tahu kapan bus <i>benar-benar</i> datang.</p>
       <div class="jam-besar">{{ sekarang|jam }} <span style="font-size:18px;font-weight:600;opacity:.85">WIB</span></div>
-      <p style="font-size:14px">Beroperasi {{ data.jam_operasi.mulai }}–{{ data.jam_operasi.selesai }} · setiap {{ data.interval_menit }} menit · {{ data.armada.jumlah_bus }} armada</p>
+      <p style="font-size:14px">Berangkat dari {{ halte[0] }} {{ data.jam_operasi.mulai }}–{{ data.jam_operasi.selesai }} · setiap {{ data.interval_menit }} menit · {{ halte|length }} halte · tarif {{ data.tarif|lower }}</p>
       <form class="cari" action="{{ url_for('rute') }}">
         <label>Dari<select name="asal">{% for n in halte %}<option value="{{ loop.index0 }}">{{ n }}</option>{% endfor %}</select></label>
         <label>Ke<select name="tujuan">{% for n in halte %}<option value="{{ loop.index0 }}" {{ 'selected' if loop.index0==1 }}>{{ n }}</option>{% endfor %}</select></label>
@@ -55,31 +55,65 @@
       {% if h.bus %}
         {% set b = h.bus[0] %}
         <div><div class="jam">{{ b.waktu|jam }}</div>
-        <div class="lagi">{% if b.tunggu == 0 %}<b style="color:var(--biru)">Tiba sekarang</b>{% else %}{{ b.tunggu|durasi }} lagi{% endif %} · bus {{ b.bus }}</div></div>
+        <div class="lagi">{% if b.tunggu == 0 %}<b style="color:var(--biru)">Tiba sekarang</b>{% else %}{{ b.tunggu|durasi }} lagi{% endif %} · jadwal resmi</div></div>
+        {% if b.versi_komunitas is not none %}<div><span class="warga telat">Kata warga: sekitar {{ b.versi_komunitas|jam }}</span></div>{% endif %}
         {% if h.bus|length > 1 %}<div class="berikut">Setelahnya {{ h.bus[1].waktu|jam }}</div>{% endif %}
       {% else %}
         <div class="tutup">Layanan hari ini sudah selesai.</div>
         {% if h.pertama is not none %}<div class="berikut">Bus pertama besok {{ h.pertama|jam }}</div>{% endif %}
       {% endif %}
+      <div class="kecil">
+        {% if h.komunitas.jumlah %}Komunitas: {{ h.komunitas.status }} ({{ h.komunitas.jumlah }} laporan){% else %}Belum ada laporan warga{% endif %}
+        {% if h.komunitas.tidak_datang %} · {{ h.komunitas.tidak_datang }}× "bus tidak datang"{% endif %}
+        · <a href="{{ url_for('komunitas', halte=h.indeks) }}#lapor">Lapor</a>
+      </div>
     </div>
   {% endfor %}
   </div>
 </section>
 
-<section class="bagian">
-  <h2>Armada shuttle kampus</h2>
-  <p class="sub">Dua jenis kendaraan yang melayani mobilitas di kampus Jatinangor.</p>
-  <div class="armada">
-    <div class="kartu">
-      <div class="gambar">{% include "ilustrasi/van.svg" %}</div>
-      <b>Shuttle van</b>
-      <span class="kecil">Untuk rute antar-gedung yang lebih jauh, kapasitas sekitar {{ data.armada.kapasitas }} penumpang per perjalanan dalam simulasi.</span>
-    </div>
-    <div class="kartu">
-      <div class="gambar">{% include "ilustrasi/golf.svg" %}</div>
-      <b>Mobil golf listrik</b>
-      <span class="kecil">Kendaraan listrik terbuka untuk jarak dekat di sekitar gedung kuliah.</span>
-    </div>
+<section class="bagian" id="peta">
+  <h2>Peta rute</h2>
+  <p class="sub">Rute melingkar {{ halte[0] }} → GSG → kembali ke {{ halte[0] }}, satu putaran sekitar {{ putaran }} menit. Klik titik halte untuk melihat bus berikutnya. Posisi halte perkiraan.</p>
+  <div class="kartu" style="padding:0;overflow:hidden">
+    <div id="peta-rute" style="height:440px;background:var(--biru-muda)"></div>
   </div>
 </section>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<style>
+.penanda{width:26px;height:26px;border-radius:50%;background:#fff;border:3px solid var(--biru);color:var(--biru-tua);font:700 12px/20px "Plus Jakarta Sans",sans-serif;text-align:center;box-shadow:0 2px 6px rgba(0,0,0,.25)}
+.penanda.awal{background:var(--biru);color:#fff}
+.leaflet-popup-content{font-family:"Plus Jakarta Sans",sans-serif;font-size:13.5px;line-height:1.5}
+</style>
+<script>
+(function(){
+  if (!window.L) return;
+  var jalur = {{ data.jalur_peta|tojson }};
+  var halte = [{% for h in papan %}{
+    nama: {{ h.nama|tojson }},
+    lat: {{ data.halte[h.indeks].lat }}, lon: {{ data.halte[h.indeks].lon }},
+    bus: {{ (h.bus[0].waktu|jam if h.bus else '')|tojson }},
+    warga: {{ (h.komunitas.status if h.komunitas.jumlah else '')|tojson }},
+    lapor: {{ (url_for('komunitas', halte=h.indeks) ~ '#lapor')|tojson }}
+  }{{ ',' if not loop.last }}{% endfor %}];
+  var peta = L.map('peta-rute', {scrollWheelZoom: false});
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 19, attribution: '&copy; OpenStreetMap contributors'
+  }).addTo(peta);
+  var garis = L.polyline(jalur, {color: '#2b5a9b', weight: 5, opacity: .85}).addTo(peta);
+  halte.forEach(function(h, i){
+    var ikon = L.divIcon({className: '', html: '<div class="penanda' + (i === 0 ? ' awal' : '') + '">' + (i + 1) + '</div>', iconSize: [26, 26], iconAnchor: [13, 13]});
+    var isi = document.createElement('div');
+    var b = document.createElement('b'); b.textContent = h.nama; isi.appendChild(b);
+    isi.appendChild(document.createElement('br'));
+    isi.appendChild(document.createTextNode(h.bus ? 'Bus berikutnya ' + h.bus + ' (jadwal resmi)' : 'Layanan hari ini sudah selesai'));
+    if (h.warga) { isi.appendChild(document.createElement('br')); isi.appendChild(document.createTextNode('Komunitas: ' + h.warga)); }
+    isi.appendChild(document.createElement('br'));
+    var a = document.createElement('a'); a.href = h.lapor; a.textContent = 'Lapor kalau berbeda'; isi.appendChild(a);
+    L.marker([h.lat, h.lon], {icon: ikon}).addTo(peta).bindPopup(isi);
+  });
+  peta.fitBounds(garis.getBounds(), {padding: [30, 30]});
+})();
+</script>
 {% endblock %}

@@ -101,7 +101,7 @@ def validasi_data(data):
     try:
         mulai = ke_menit(data["jam_operasi"]["mulai"])
         selesai = ke_menit(data["jam_operasi"]["selesai"])
-        if selesai <= mulai:
+        if selesai < mulai:
             salah.append("Jam selesai harus setelah jam mulai.")
     except (KeyError, ValueError) as e:
         salah.append(f"Jam operasi tidak valid: {e}")
@@ -117,35 +117,17 @@ def validasi_data(data):
     if len(tempuh) != n:
         salah.append(f"Jumlah waktu tempuh ({len(tempuh)}) harus sama dengan jumlah halte ({n}).")
     for t in tempuh:
-        if not isinstance(t, (int, float)) or t <= 0:
-            salah.append("Setiap waktu tempuh harus angka lebih dari 0.")
+        # Boleh 0: dua halte yang sangat dekat bisa ditempuh kurang dari satu menit.
+        if not isinstance(t, (int, float)) or t < 0:
+            salah.append("Setiap waktu tempuh harus angka 0 atau lebih.")
             break
+    if sum(tempuh) + data.get("waktu_henti", 0) * n <= 0:
+        salah.append("Lama satu putaran harus lebih dari 0 menit.")
 
     if data.get("waktu_henti", -1) < 0:
         salah.append("Waktu henti tidak boleh negatif.")
     if data.get("interval_menit", 0) <= 0:
         salah.append("Interval keberangkatan harus lebih dari 0 menit.")
-
-    armada = data.get("armada", {})
-    if armada.get("jumlah_bus", 0) < 1:
+    if data.get("armada", {}).get("jumlah_bus", 0) < 1:
         salah.append("Jumlah bus minimal 1.")
-    if armada.get("kapasitas", 0) < 1:
-        salah.append("Kapasitas bus minimal 1.")
-
-    for jam, daftar in data.get("permintaan", {}).items():
-        if len(daftar) != n:
-            salah.append(f"Permintaan jam {jam}:00 harus berisi {n} angka (satu per halte).")
-        for angka in daftar:
-            if angka < 0:
-                salah.append(f"Permintaan jam {jam}:00 tidak boleh negatif.")
-                break
-
-    opt = data.get("optimasi", {})
-    if opt:
-        if opt.get("interval_min", 1) > opt.get("interval_max", 1):
-            salah.append("Optimasi: interval minimum lebih besar dari maksimum.")
-        if opt.get("bus_min", 1) > opt.get("bus_max", 1) or opt.get("bus_min", 1) < 1:
-            salah.append("Optimasi: rentang jumlah bus tidak valid.")
-        if opt.get("interval_langkah", 1) < 1:
-            salah.append("Optimasi: langkah interval minimal 1.")
     return salah

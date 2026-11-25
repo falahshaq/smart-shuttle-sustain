@@ -5,3 +5,4 @@ venv/
 .vercel/
 .env*
 laporan_simulasi.txt
+data/laporan.json

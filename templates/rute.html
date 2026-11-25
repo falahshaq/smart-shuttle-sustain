@@ -18,7 +18,7 @@
 
 {% if hasil %}
 <div class="statistik">
-  <div class="stat"><div class="label">Bus datang</div><div class="nilai">{{ hasil.waktu_bus_datang|jam }}</div><div class="ket">bus {{ hasil.bus }}</div></div>
+  <div class="stat"><div class="label">Bus datang</div><div class="nilai">{{ hasil.waktu_bus_datang|jam }}</div><div class="ket">jadwal resmi</div></div>
   <div class="stat"><div class="label">Menunggu</div><div class="nilai">{{ hasil.lama_tunggu }} mnt</div><div class="ket">dari {{ jam|jam }}</div></div>
   <div class="stat"><div class="label">Di dalam bus</div><div class="nilai">{{ hasil.lama_perjalanan }} mnt</div><div class="ket">{{ hasil.rute|length - 1 }} perhentian</div></div>
   <div class="stat"><div class="label">Tiba</div><div class="nilai">{{ hasil.waktu_tiba|jam }}</div><div class="ket">total {{ hasil.total_waktu|durasi }}</div></div>

@@ -1,42 +1,32 @@
 {% extends "base.html" %}
 {% block judul %}Tentang · {{ data.nama_layanan }}{% endblock %}
-{% block label %}<span class="label">Proyek WI1102</span>{% endblock %}
+{% block label %}<span class="label">Mobilitas kampus berkelanjutan</span>{% endblock %}
 {% block judul_halaman %}Tentang Smart Shuttle{% endblock %}
-{% block sub_halaman %}Proyek II WI1102 Berpikir Komputasional · Kelompok 01 K33 · STEI ITB{% endblock %}
+{% block sub_halaman %}Info shuttle dalam kampus ITB Jatinangor yang dirawat bersama oleh penumpangnya.{% endblock %}
 {% block isi %}
 
 <div class="kartu">
-  <h2>Masalah</h2>
-  <p>Dari 52 responden kuesioner, 48,1% belum pernah memakai shuttle kampus. Alasan terbanyak: tidak tahu jadwal (60,7%) dan waktu tunggu yang lama (42,9%). Smart Shuttle memberi info jadwal untuk penumpang dan alat simulasi untuk pengelola.</p>
+  <h2>Kenapa ini penting</h2>
+  <p>Banyak mahasiswa tidak naik shuttle karena tidak tahu jadwalnya atau tidak yakin busnya datang tepat waktu, lalu memilih kendaraan pribadi. Kalau informasi shuttle bisa dipercaya, lebih banyak orang mau memakai angkutan bersama yang gratis, dan perjalanan dengan kendaraan pribadi di dalam kampus berkurang.</p>
 </div>
 
 <div class="grid dua">
   <div class="kartu">
-    <h2>Sisi penumpang</h2>
-    <ul>
-      <li><b>Bus berikutnya</b> di setiap halte dari waktu sekarang</li>
-      <li><b>Estimasi tiba</b>: waktu tunggu + waktu di bus</li>
-      <li><b>Jadwal lengkap</b> semua perjalanan hari ini</li>
-    </ul>
+    <h2>Jadwal resmi</h2>
+    <p>Rute, halte, dan jadwal diambil dari <a href="{{ data.sumber.url }}" target="_blank" rel="noopener">ModaHub PetakPeta</a> (Transport for Bandung, Agustus 2026, dan OpenStreetMap). Bus berangkat dari {{ data.halte[0].nama }} setiap {{ data.interval_menit }} menit, {{ data.jam_operasi.mulai }}–{{ data.jam_operasi.selesai }} WIB. Jam di halte lain dihitung dari waktu tempuh, jadi tetap perkiraan.</p>
   </div>
   <div class="kartu">
-    <h2>Sisi pengelola</h2>
-    <ul>
-      <li><b>Simulasi sehari</b> per menit dengan antrean dan kapasitas bus</li>
-      <li><b>Optimasi</b> brute force interval × jumlah bus dengan fungsi skor</li>
-      <li><b>Adopsi</b>: perkiraan pertambahan pengguna</li>
-      <li><b>Kelola data</b> halte, jadwal, dan permintaan</li>
-    </ul>
+    <h2>Jadwal versi komunitas</h2>
+    <p>Penumpang bisa melapor jam bus yang sebenarnya, bus yang tidak datang, atau data halte yang salah. Program mencocokkan tiap laporan dengan jadwal resmi terdekat, lalu mengambil median selisihnya per halte. Laporan yang didukung banyak orang bobotnya lebih besar, dan hanya laporan 30 hari terakhir yang dipakai.</p>
   </div>
 </div>
 
 <div class="kartu">
-  <h2>Berpikir komputasional</h2>
+  <h2>Cara kerja program</h2>
   <ul>
-    <li><b>Dekomposisi</b>: program dipecah jadi modul <code>data</code>, <code>penumpang</code>, <code>simulasi</code>, <code>optimasi</code>, <code>adopsi</code>, <code>laporan</code>. Versi terminal dan web memanggil fungsi yang sama.</li>
-    <li><b>Abstraksi</b>: waktu = menit sejak 00:00; rute = list halte melingkar; penumpang = asal, tujuan, waktu datang; permintaan = rata-rata penumpang per jam per halte.</li>
-    <li><b>Pola</b>: setiap menit polanya sama (datang → antre → turun → naik); jadwal berulang setiap interval; optimasi = simulasi yang sama diulang untuk banyak kombinasi.</li>
-    <li><b>Algoritma</b>: pencarian linear (bus berikutnya), simulasi waktu diskrit, antrean FIFO, brute force + fungsi skor.</li>
+    <li><b>Dekomposisi</b>: modul <code>data</code> (rute dan jadwal), <code>penumpang</code> (bus berikutnya, estimasi tiba), <code>komunitas</code> (laporan dan jadwal versi warga), <code>penyimpanan</code>. Versi terminal dan web memakai fungsi yang sama.</li>
+    <li><b>Abstraksi</b>: waktu = menit sejak 00:00; rute = list halte melingkar; laporan = halte, jam, selisih dari jadwal.</li>
+    <li><b>Algoritma</b>: pencarian linear (bus berikutnya, jadwal terdekat), median berbobot untuk merangkum laporan.</li>
   </ul>
 </div>
 {% endblock %}

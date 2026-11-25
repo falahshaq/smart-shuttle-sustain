@@ -2,15 +2,17 @@
 {% block judul %}Jadwal · {{ data.nama_layanan }}{% endblock %}
 {% block label %}<span class="label">Penumpang</span>{% endblock %}
 {% block judul_halaman %}Jadwal lengkap hari ini{% endblock %}
-{% block sub_halaman %}{{ jadwal|length }} perjalanan · {{ data.armada.jumlah_bus }} bus · interval {{ data.interval_menit }} menit · satu putaran {{ putaran }} menit. Baris hijau = perjalanan yang sedang berlangsung.{% endblock %}
+{% block sub_halaman %}Jadwal resmi: {{ jadwal|length }} keberangkatan dari {{ halte[0] }}, setiap {{ data.interval_menit }} menit, satu putaran sekitar {{ putaran }} menit. Baris biru = perjalanan yang sedang berlangsung.{% endblock %}
 {% block isi %}
+<div class="info">Jam di tabel adalah jadwal resmi dari <a href="{{ data.sumber.url }}" target="_blank" rel="noopener">ModaHub</a>. Baris "Kata warga" merangkum laporan penumpang 30 hari terakhir. Jadwal di lapangan beda? <a href="{{ url_for('komunitas') }}#lapor">Laporkan di sini</a>.</div>
 <div class="kartu tabel">
 <table>
-  <tr><th>#</th><th>Bus</th>{% for n in halte %}<th>{{ n }}</th>{% endfor %}<th>Kembali ke {{ halte[0] }}</th></tr>
+  <tr><th>#</th>{% for n in halte %}<th>{{ n }}</th>{% endfor %}<th>Kembali ke {{ halte[0] }}</th></tr>
+  <tr><td class="kecil">Kata warga</td>{% for k in komunitas %}<td>{% if k.jumlah %}<span class="warga {{ 'telat' if k.status != 'sesuai jadwal' }}">{{ k.status }}</span>{% else %}<a class="kecil" href="{{ url_for('komunitas', halte=k.indeks) }}#lapor">lapor</a>{% endif %}</td>{% endfor %}<td></td></tr>
   {% for t in jadwal %}
   {% set akhir = t.tiba[-1] %}
   <tr class="{{ 'lewat' if akhir < sekarang else ('sorot' if t.berangkat <= sekarang else '') }}">
-    <td>{{ t.nomor }}</td><td>{{ t.bus }}</td>
+    <td>{{ t.nomor }}</td>
     {% for w in t.tiba %}<td class="angka">{{ w|jam }}</td>{% endfor %}
   </tr>
   {% endfor %}

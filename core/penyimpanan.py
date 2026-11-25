@@ -1,12 +1,10 @@
-"""Membaca dan menyimpan data shuttle.
+"""Membaca data shuttle dan menyimpan laporan komunitas.
 
-Ada dua tempat penyimpanan:
-1. File  data/shuttle.json  -> dipakai saat program jalan di laptop (terminal / Flask lokal).
-2. Redis (Upstash / Vercel KV) -> dipakai saat jalan di Vercel, karena di Vercel
-   file tidak bisa ditulis saat program berjalan.
-
-Kalau variabel lingkungan Redis tersedia, program otomatis memakai Redis.
-Kalau tidak, program memakai file JSON.
+- Data resmi (halte, jadwal, peta) dibaca dari file  data/shuttle.json.
+  Sumbernya ModaHub PetakPeta; ubah file ini lalu push untuk memperbarui.
+- Laporan komunitas harus bisa ditulis saat web berjalan. Di Vercel file
+  tidak bisa ditulis, jadi laporan disimpan di Redis (Upstash). Di laptop,
+  tanpa Redis, laporan disimpan di file  data/laporan.json.
 """
 
 import json
@@ -15,8 +13,13 @@ import urllib.request
 
 FOLDER_PROYEK = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 FILE_DATA = os.path.join(FOLDER_PROYEK, "data", "shuttle.json")
-FILE_DEFAULT = os.path.join(FOLDER_PROYEK, "data", "shuttle_default.json")
-KUNCI_REDIS = "smart_shuttle:data"
+FILE_LAPORAN = os.path.join(FOLDER_PROYEK, "data", "laporan.json")
+
+# Awalan kunci dibuat beda dari repo tubes2, supaya aman kalau
+# kedua project Vercel memakai database Redis yang sama.
+KUNCI_LAPORAN = "sustain:laporan"      # list, tiap elemen = JSON satu laporan
+KUNCI_DUKUNGAN = "sustain:dukungan"    # hash id -> jumlah "saya juga mengalami"
+KUNCI_DIHAPUS = "sustain:dihapus"      # set id laporan yang dihapus admin
 
 
 # ---------- Redis lewat REST API (tanpa library tambahan) ----------
@@ -48,62 +51,98 @@ def _perintah_redis(perintah):
         return json.loads(respons.read().decode("utf-8")).get("result")
 
 
-# ---------- Fungsi utama ----------
+# ---------- Data resmi ----------
+
+def muat_data():
+    """Membaca data shuttle (halte, jadwal, jalur peta)."""
+    with open(FILE_DATA, encoding="utf-8") as f:
+        return json.load(f)
+
+
+# ---------- Laporan komunitas ----------
 
 def jenis_penyimpanan():
-    """Teks singkat: data disimpan di mana."""
     if _konfigurasi_redis():
         return "redis"
     return "file"
 
 
-def bisa_disimpan():
-    """True kalau perubahan data bisa disimpan permanen."""
+def laporan_bisa_disimpan():
+    """True kalau laporan bisa disimpan permanen."""
     if _konfigurasi_redis():
         return True
     # Di Vercel tanpa Redis, sistem file hanya bisa dibaca.
     return not os.environ.get("VERCEL")
 
 
-def muat_data_default():
-    """Membaca data bawaan (contoh) dari file."""
-    with open(FILE_DEFAULT, encoding="utf-8") as f:
-        return json.load(f)
+def _baca_file_laporan():
+    if os.path.exists(FILE_LAPORAN):
+        with open(FILE_LAPORAN, encoding="utf-8") as f:
+            return json.load(f)
+    return {"laporan": [], "dukungan": {}, "dihapus": []}
 
 
-def muat_data():
-    """Membaca data shuttle yang sedang dipakai."""
+def _tulis_file_laporan(isi):
+    with open(FILE_LAPORAN, "w", encoding="utf-8") as f:
+        json.dump(isi, f, indent=2, ensure_ascii=False)
+
+
+def muat_laporan():
+    """List semua laporan (yang belum dihapus), lengkap dengan jumlah dukungan."""
     if _konfigurasi_redis():
         try:
-            isi = _perintah_redis(["GET", KUNCI_REDIS])
-            if isi:
-                return json.loads(isi)
+            mentah = _perintah_redis(["LRANGE", KUNCI_LAPORAN, 0, -1]) or []
+            dukungan_list = _perintah_redis(["HGETALL", KUNCI_DUKUNGAN]) or []
+            dihapus = set(_perintah_redis(["SMEMBERS", KUNCI_DIHAPUS]) or [])
         except Exception:
-            pass  # Redis bermasalah: pakai file sebagai cadangan.
-    if os.path.exists(FILE_DATA):
-        with open(FILE_DATA, encoding="utf-8") as f:
-            return json.load(f)
-    return muat_data_default()
+            return []
+        laporan = [json.loads(x) for x in mentah]
+        # HGETALL lewat REST mengembalikan [kunci1, nilai1, kunci2, nilai2, ...]
+        dukungan = {}
+        for i in range(0, len(dukungan_list) - 1, 2):
+            dukungan[dukungan_list[i]] = int(dukungan_list[i + 1])
+    else:
+        isi = _baca_file_laporan()
+        laporan = isi["laporan"]
+        dukungan = isi["dukungan"]
+        dihapus = set(isi["dihapus"])
+
+    hasil = []
+    for lap in laporan:
+        if lap["id"] in dihapus:
+            continue
+        lap["dukungan"] = dukungan.get(lap["id"], 0)
+        hasil.append(lap)
+    return hasil
 
 
-def simpan_data(data):
-    """Menyimpan data shuttle. Mengembalikan pesan teks hasilnya."""
-    teks = json.dumps(data, indent=2, ensure_ascii=False)
+def simpan_laporan(laporan):
+    if not laporan_bisa_disimpan():
+        raise PermissionError("Penyimpanan laporan belum aktif. Hubungkan Upstash Redis di tab Storage Vercel.")
     if _konfigurasi_redis():
-        _perintah_redis(["SET", KUNCI_REDIS, teks])
-        return "Data tersimpan di database (Redis)."
-    if not bisa_disimpan():
-        raise PermissionError(
-            "Di Vercel data tidak bisa disimpan ke file. "
-            "Hubungkan database Redis (Upstash) di tab Storage Vercel."
-        )
-    with open(FILE_DATA, "w", encoding="utf-8") as f:
-        f.write(teks)
-    return "Data tersimpan di data/shuttle.json."
+        _perintah_redis(["RPUSH", KUNCI_LAPORAN, json.dumps(laporan, ensure_ascii=False)])
+        return
+    isi = _baca_file_laporan()
+    isi["laporan"].append(laporan)
+    _tulis_file_laporan(isi)
 
 
-def reset_data():
-    """Mengembalikan data ke data contoh bawaan."""
-    data = muat_data_default()
-    pesan = simpan_data(data)
-    return data, pesan
+def tambah_dukungan(id_laporan):
+    if not laporan_bisa_disimpan():
+        raise PermissionError("Penyimpanan laporan belum aktif.")
+    if _konfigurasi_redis():
+        _perintah_redis(["HINCRBY", KUNCI_DUKUNGAN, id_laporan, 1])
+        return
+    isi = _baca_file_laporan()
+    isi["dukungan"][id_laporan] = isi["dukungan"].get(id_laporan, 0) + 1
+    _tulis_file_laporan(isi)
+
+
+def hapus_laporan(id_laporan):
+    if _konfigurasi_redis():
+        _perintah_redis(["SADD", KUNCI_DIHAPUS, id_laporan])
+        return
+    isi = _baca_file_laporan()
+    if id_laporan not in isi["dihapus"]:
+        isi["dihapus"].append(id_laporan)
+    _tulis_file_laporan(isi)
