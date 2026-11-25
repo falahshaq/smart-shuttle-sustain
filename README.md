@@ -8,7 +8,7 @@ dari laporan penumpang. Turunan dari repo `tubes2`; fitur simulasi, optimasi, ad
 
 Data rute, halte, jadwal, dan jalur peta di `data/shuttle.json` diambil dari
 [ModaHub PetakPeta](https://modahub.petakpeta.com/rute/kampus_jatinangor/ITBJ_SHUTTLE/shuttle-dalam-kampus-itb-jatinangor)
-(Transport for Bandung, Agu 2026 · OpenStreetMap): 9 halte melingkar, berangkat dari Gerbang Utama
+(Transport for Bandung, Agu 2026 · OpenStreetMap): 8 halte melingkar (halte Labtek V sengaja tidak dipakai), berangkat dari Gerbang Utama
 setiap 20 menit pukul 06:45–15:45, satu putaran sekitar 13 menit.
 
 ## Struktur folder
