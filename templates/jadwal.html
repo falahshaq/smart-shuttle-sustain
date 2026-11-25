@@ -4,7 +4,7 @@
 {% block judul_halaman %}Jadwal lengkap hari ini{% endblock %}
 {% block sub_halaman %}Jadwal resmi: {{ jadwal|length }} keberangkatan dari {{ halte[0] }}, setiap {{ data.interval_menit }} menit, satu putaran sekitar {{ putaran }} menit. Baris biru = perjalanan yang sedang berlangsung.{% endblock %}
 {% block isi %}
-<div class="info">Jam di tabel adalah jadwal resmi dari <a href="{{ data.sumber.url }}" target="_blank" rel="noopener">ModaHub</a>. Baris "Kata warga" merangkum laporan penumpang 30 hari terakhir. Jadwal di lapangan beda? <a href="{{ url_for('komunitas') }}#lapor">Laporkan di sini</a>.</div>
+<div class="info">Jam di tabel adalah jadwal resmi. Baris "Kata warga" merangkum laporan penumpang 30 hari terakhir. Jadwal di lapangan beda? <a href="{{ url_for('komunitas') }}#lapor">Laporkan di sini</a>.</div>
 <div class="kartu tabel">
 <table>
   <tr><th>#</th>{% for n in halte %}<th>{{ n }}</th>{% endfor %}<th>Kembali ke {{ halte[0] }}</th></tr>
